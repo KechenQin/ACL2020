@@ -1,0 +1,111 @@
+\section{Results and Analysis}
+
+\subsection{Experimental Setup}
+We conduct experiments on 3 multi-hop KBQA datasets, \textsc{PathQuestion-Large} (PQL) \cite{DBLP:conf/coling/ZhouHZ18}, \textsc{WebQuestionSP} (WQSP) \cite{DBLP:conf/acl/YihCHG15}, and \textsc{ComplexWebQuestion}-1.1 (CWQ) \cite{DBLP:journals/corr/abs-1807-09623}, and use the original train/dev/test split. For questions with multiple answers, we use each answer to construct a question-answer (QA) pair. Table \ref{tab:stats} contains statistics of these datasets. All of the three datasets use Freebase as the supporting knowledge base. For PQL, the original paper provides a subgraph of the Freebase. For WQSP and CWQ, we build a subgraph in a similar way as in \cite{DBLP:conf/emnlp/SunDZMSC18}, in order to generate the entity and relation candidates. We test three different graph embedding methods \textsc{Word2vec} \cite{DBLP:journals/corr/abs-1301-3781}, \textsc{TransE} \cite{DBLP:conf/nips/BordesUGWY13}, and \textsc{HolE} \cite{DBLP:journals/corr/TrouillonN17}, and decide to use \textsc{TransE} in our final experiment. \kechen{mention bert does not perform well here?}
+
+\begin{table}[h]\centering
+\resizebox{0.8\columnwidth}{!}{
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+& \#train & \#valid & \#test & max\_hops & path \textgreater 1\\
+\hline
+PQL2H & 1275    & 159     & 160    & 2  & -      \\
+PQL3H & 1649    & 206     & 207    & 3  & -      \\
+PQL+  & 2924    & 365     & 367    & 3  & -      \\
+WQSP  & 2677    & 297     & 1639   & 2  & 79.4\%      \\
+CWQ   & 27639        &    3519    &   3531     &   6   &    \\
+\hline
+\end{tabular}
+}
+\caption{\fontsize{10}{12}\selectfont Statistics of the datasets. %Note that CWQ dataset does not come with relation path annotation. We get max\_hops by counting the number of relations used in the SPARQL language.
+}\label{tab:stats}
+\end{table}
+
+We implement our model using \textsc{tensorflow-1.4.0} and choose S-MART \cite{DBLP:journals/corr/YangC16a} and AllenNLP \cite{Gardner2017AllenNLP} as our entity linking tools\footnote{Entity linking results on \textsc{WebQuestionSP} can be found at \url{https://github.com/scottyih/STAGG}}. The best tuned parameters on development set are summarized as follows: the dynamic function for RNNs is chosen as a gated recurrent units (GRU) with 2 layers and at most 30 units in decoder. The size of the GRU unit and all other embedding layers are set as 300. The threshold $k_1$ is set to be: 15 plus the number of answers in the ground truth answer set, and $k_2$ is 2. We set the dropout rate as 0.3, and train the model using an Adam optimizer with a learning rate of $0.0005$. The Beam size is set to be 12 for both training and inference. We adopt the set accuracy, hits@1, and the average F1 score as our main evaluation metrics. %and compare our method with the following methods: 
+It is worth noticing that: except our methods' results, all other experimental results are obtained from early published papers. Details of these models can be found from our referenced papers.
+
+%We test different objective functions on WQSP and CWQ datasets. For WQSP, the dataset is originally labeled with multiple relation paths for each QA pair. We thus use them to train our model with joint probability objective. For CWQ, which does not come with any labeled relation path, we parse the given SPARQL queries into relation paths as ground truth labels in single path experiment. The multiple paths experiment is done by using both DFS and trained single path model to extract extra relation paths which points to the answer.
+
+
+\subsection{Experimental Results}
+\subsubsection{PathQuestion-Large} \kechen{why this is much better than the other two}
+We first test our model on \textsc{PathQuestion-Large} (PQL) dataset. The original release contains two subsets: PQL2H and PQL3H, which contains only 2-hop and 3-hop questions correspondingly. In \cite{DBLP:conf/naacl/ChenCCNK19}, it then combined these two subsets and renamed the unified dataset as PQL+. The purpose is to evaluate if their model can stop at the correct number of hops or always stop at a fixed number of hops.
+
+\begin{table}[h]\centering
+\resizebox{1.01\columnwidth}{!}{%resize the table
+\begin{tabular}{|l|c|c|c|}
+\hline
+                            & PQL2H & PQL3H & PQL+  \\
+\hline
+KV-MemNN \cite{DBLP:conf/emnlp/MillerFDKBW16}    & 72.2 & 67.4 & -         \\
+IRN \cite{DBLP:conf/coling/ZhouHZ18}                         & 72.5 & 71.0     & 52.9     \\
+HR-BiLSTM \cite{DBLP:conf/acl/YuYHSXZ17}                  & 97.5 & 87.9 & 92.9       \\
+ABWIM \cite{DBLP:journals/corr/abs-1801-09893}                      & 94.3 & 89.3 & 92.6         \\
+UHop \cite{DBLP:conf/naacl/ChenCCNK19}                       & 97.5 & 89.3 & 92.3      \\
+\hline
+Our Method-joint\_prob-nomemory         & 95.3 & 94.8 & 94.5       \\
+Our Method-joint\_prob             & \textbf{98.3} & \textbf{97.1} & \textbf{97.5}         \\
+\hline
+\end{tabular}
+}
+\caption{\fontsize{10}{12}\selectfont We report set accuracy ($\%$) on PQL. For UHop, we use the best reported setup from the original paper, \emph{i.e.} ABWIM with UHop.}\label{tab:qpl}
+\end{table}
+
+
+The PQL dataset contains synthetic questions generated by templates, and each QA pair is labeled with only one relation path as its ground-truth. Because most of the QA pairs in PQL dataset can only find one corresponding relation path due to its very small knowledge base, we did not test our marginal probability objective on this dataset. The experiments are mainly used to show the prediction ability of our proposed base model with joint probability objective. Table \ref{tab:qpl} shows that our method's performance beats all the other approaches on all three subsets of PQL from 1$\%$ to 7.8$\%$ in terms of test accuracy. It is also worth noticing that the gap between our method to the previous state-of-the-art approach (\emph{i.e.} UHop) becomes larger when the number of hops increase from 2 to 3. This indicates that the importance of using our model, especially when the number of hops increases in questions. We also implement a baseline version of our method with only the question encoding and relation prediction modules. By removing entity lookup and answer prediction modules, our model works similarly as a vanilla RNN model with attention. The baseline model generates a sequence of relations and uses them to fetch the final answer from the knowledge base by following them sequentially. By comparing the last two rows in Table \ref{tab:qpl}, we can see that, by adding the entity lookup module, there is a significant performance boost. It equips our model with the ability not only to search but also to interact with the knowledge base. It can be further observed for Table \ref{tab:qpl} that our model performs much better than the conventional KV-MemNN, which has an entity lookup module, but does not contain a relation prediction module. We believe that this is because the intermediate key-value operations benefit from the direct relation supervision. Therefore, our model can be treated as a good combination of RNN-attention model and KV-MemNN. 
+\subsubsection{WebQuestionSP}
+
+\textsc{WebQuestionSP} is a dataset that has been widely used for relation extraction and end-to-end KBQA task. It contains 1 or 2 hops questions with ground truth relation path labels. In order to train our model with the marginal probability objective, we have two different setups by either using or not using ground truth relations to pre-train the model. Table \ref{tab:wqsp_cwq} shows that our model with marginal training objective performs much better than all other methods. KBQA-GST \cite{DBLP:conf/ijcai/LanW019} relies on additional annotations, such as textual description of the knowledge base, and using existing models to generate features. The experiments from their papers show that these generated extra features play a very important role in the system, and their F1 score drops from 67.9 to 61.5 by removing the semantic feature. Similarly, HR-BiLSTM requires relation path annotations to train their model, which are not accessible in many KBQA application scenarios. In contrast, our model supports a training method that takes only raw QA pairs as its input and does not rely on any additional labels or linguistic features. By comparing performance of using different objectives as shown in the second block of the table, we can see that there is a significant improvement by considering multiple relation paths in training. The performance gap between joint objective and marginal objective demonstrates that our proposed marginal objective is a much better way to train a model with multiple relation paths. We do not observe a very different results by using or not using labeled relation paths, which is a good signal. 
+
+
+\begin{table}[h]\centering
+\resizebox{1.01\columnwidth}{!}{
+\begin{tabular}{|l|c|c|}
+\hline
+                           & WQSP & CWQ \\
+\hline
+KV-MemNN \cite{DBLP:conf/emnlp/MillerFDKBW16}    & 46.7 / - & 21.1\tablefootnote{The original paper only reports scores on development set.} / -      \\
+HR-BiLSTM \cite{DBLP:conf/acl/YuYHSXZ17}                  & 62.9 / 62.3 & 33.3 / 31.2         \\
+GRAFT-Net \cite{DBLP:conf/emnlp/SunDZMSC18}                & 67.8 / 62.5 & 30.1 / 26.0      \\
+KBQA-GST \cite{DBLP:conf/ijcai/LanW019}          & 68.2 / 67.9 & 39.3 / \textbf{36.5}      \\
+\hline
+Our Method-joint\_prob             &    62.8 / 62.3  &   36.7 / 31.4        \\
+Our Method-joint\_prob\_multiple\_paths             &  65.4 / 65.1     &    - / -       \\
+Our Method-marginal\_prob\_with\_true\_label             &   \textbf{68.9} / \textbf{68.5}    &      \textbf{39.4} / 34.8     \\
+Our Method-marginal\_prob\_without\_true\_label             &   68.8 / 68.3    &       33.0 / 27.6    \\
+%Our Method-obj3+new\_decode  &     &          \\
+\hline
+\end{tabular}
+}
+\caption{\fontsize{10}{12}\selectfont We report hits@1 / F1 on WQSP and CWQ.}\label{tab:wqsp_cwq}
+\end{table}
+
+
+\begin{table*}[t]\centering
+\resizebox{2.1\columnwidth}{!}{%resize the table
+\begin{tabular}{l|l|l}
+\hline
+\multicolumn{3}{c}{Question: what state does romney live in?  \ \ \        Answer: Massachusetts  \ \ \       Topic entity: romney}                                                                                                                                            \\ \hline
+.89:children & .29:education\_institution,state\_province\_region & .83:\textbf{places\_lived,location} \\ \hline
+.06:\textbf{government\_positions,jurisdiction\_of\_office} & .25:\textbf{places\_lived,location} & .12:\textbf{government\_positions,jurisdiction\_of\_office} \\ \hline
+.04:\textbf{government\_positions,office\_position\_or\_title} & .25:\textbf{government\_positions,district\_represented} & .04:\textbf{government\_positions,district\_represented} \\ \hline
+.00:\textbf{government\_positions,district\_represented} & .01:\textbf{government\_positions,jurisdiction\_of\_office} & .01:place\_of\_birth,state \\ \hline
+.0:place\_of\_birth & .01:place\_of\_birth,state & .00:education,degree \\ \hline
+.00:jurisdiction\_of\_office & .01:sibling,place\_of\_birth & .00:election\_campaigns \\ \hline 
+\multicolumn{3}{c}{Question:where did madonna grew up?\ \ \       Answer: Bay City\ \ \    Topic entity: madonna}                                                                                                                                            \\ 
+\hline
+.99:\textbf{place\_of\_birth} & .50:nominated\_for & .47:nominated\_for,featured\_film\_locations \\ \hline
+.00:nominated\_for & .16:nominated\_for,featured\_film\_locations & .40:\textbf{place\_of\_birth} \\ \hline
+.00:\textbf{place\_lived.location} & .11:compositions & .11:\textbf{place\_lived.location,place} \\ \hline
+.00:place\_lived.location,containedby & .09:\textbf{place\_lived.location} & .00:nominated\_for \\ \hline
+.00:compositions & .08:\textbf{place\_of\_birth} & .00:\textbf{place\_lived.location} \\ \hline
+.00:religion & .01:award\_nominations,nominated\_for & .00:\textbf{place\_lived.location,region} \\ \hline
+
+
+\end{tabular}
+}\caption{\fontsize{10}{12}\selectfont Two running examples from \textsc{WebQuestionSP} dataset. We show the probability $P(\mathbf{r}|q)$ before the inferred relation path. Relation paths that lead to the correct answers are highlighted in bold. The three columns are corresponding to the results by using joint objective with single path, joint objective with multiple paths, and marginal objective with multiple paths. Due to space limit, we only show the partial name of a relation in the example and the probability less than .01 is shown as .00.}\label{tab:case}
+\end{table*}
+
+\subsubsection{ComplexWebQuestion-1.1}
+
+This dataset is designed to study complex questions by adding more constraints to questions in \textsc{WebQuestionSP}. It contains more difficult questions than the first two datasets.  We report the experimental results in Table \ref{tab:wqsp_cwq}. Note that this dataset does not come with multiple relation path labels, so the corresponding experiment is not available. Our model outperforms all other models in terms of hits@1, and slightly worse than KBQA-GST in terms of F1 score, but again, KBQA-GST requires many additional information to train. Different from the observation in \textsc{WebQuestionSP} dataset, we see that there is a performance degradation when the model is not pre-trained with ground truth relations. It is because that the model can easily make errors in early stage and gets stuck with these errors. In contrast, our model on WQSP does not suffer from this problem because the relation path is much shorter, and thus it is not hard to generate correct training samples at the beginning of the training. To compare it with existing methods, our model still performs better than GRAFT-Net, which is the state-of-the-art results without using any additional labels.
