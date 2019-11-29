@@ -28,3 +28,26 @@ Our Method-obj3+new\_decode & -     &   -   &    -   &     &          \\
 \caption{\fontsize{10}{12}\selectfont Average F1 over different thresholds on \textsc{WebQuestionSp} dataset.}
 \label{fig:k2}
 \end{figure}
+
+
+\begin{table}[h]\centering
+\resizebox{1.01\columnwidth}{!}{
+\begin{tabular}{|l|c|c|}
+\hline
+                           & WQSP & CWQ \\
+\hline
+%KV-MemNN \cite{DBLP:conf/emnlp/MillerFDKBW16}    & 46.7 / - & 21.1\tablefootnote{The original paper only reports scores on development set.} / -      \\
+HR-BiLSTM \cite{DBLP:conf/acl/YuYHSXZ17}                  & 62.9 / 62.3 & 33.3 / 31.2         \\
+GRAFT-Net \cite{DBLP:conf/emnlp/SunDZMSC18}                & 67.8 / 62.5 & 30.1 / 26.0      \\
+KBQA-GST \cite{DBLP:conf/ijcai/LanW019}          & 68.2 / 67.9 & 39.3 / \textbf{36.5}      \\
+\hline
+Our Method-joint\_prob             &    62.8 / 62.3  &   36.7 / 31.4        \\
+Our Method-joint\_prob\_multiple\_paths             &  65.4 / 65.1     &    - / -       \\
+Our Method-marginal\_prob\_with\_true\_label             &   \textbf{68.9} / \textbf{68.5}    &      \textbf{39.4} / 34.8     \\
+Our Method-marginal\_prob\_without\_true\_label             &   68.8 / 68.3    &       33.0 / 27.6    \\
+%Our Method-obj3+new\_decode  &     &          \\
+\hline
+\end{tabular}
+}
+\caption{\fontsize{10}{12}\selectfont We report hits@1 / F1 on WQSP and CWQ.}\label{tab:wqsp_cwq}
+\end{table}

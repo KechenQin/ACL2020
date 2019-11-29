@@ -60,7 +60,9 @@ where $\phi$ represents one layer neural network with ReLU activation, $W^{(*)}$
 
 \subsubsection{Objective Functions}
 \kechen{add $e$ to path}
-At a timestep $t$, our model take input features from three sources: question context $c$, previous entity $e$, and path history $h'$. The training objective of relation can be written using these notations as follows:
+The model can be trained in two ways: to maximize the joint probability $P(y,\mathbf{r}|q,\mathcal{KB})$, or to maximize answer probability $P(y|q,\mathcal{KB})$ directly by marginalizing out relation paths $\mathbf{r}$. The former one was adopted by many existing KBQA papers \cite{DBLP:conf/coling/ZhouHZ18}, while the later is novel to KBQA task. We now describe our objective in detail. Without loss of generality, we will omit $\mathcal{KB}$ in these formulas.
+
+At a timestep $t$, our model take input features from three sources: question context $c$, previous entity $e$, and path history $h'$. The probability of predicting the relation $r_t$ can be written using these notations as follows:
 
 
 \begin{equation}
@@ -98,7 +100,7 @@ Finally, our training goal is to maximize the probability of generating the corr
 \subsection{Training and Inference}
 \kechen{merge 2.2 to 2.1.3 and create new 2.2 only for training algorithm? should we keep join objective here?}
 
-The model can be trained in two ways: to maximize the joint probability $P(y,\mathbf{r}|q,\mathcal{KB})$, or to maximize answer probability $P(y|q,\mathcal{KB})$ directly by marginalizing out relation paths $\mathbf{r}$. The former one was adopted by many existing KBQA papers \cite{DBLP:conf/coling/ZhouHZ18}, while the later is novel to KBQA task. We now describe each objective in detail. Without loss of generality, we will omit $\mathcal{KB}$ in these formulas.
+
 
 
 
