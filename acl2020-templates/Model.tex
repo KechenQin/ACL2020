@@ -6,8 +6,7 @@
 
 
 \section{Model}
-\kechen{add e to the path}
- Given a question $q$ and its topic entity $e_0$ (identified by entity linking), our model aims to find the relation path $\mathbf{r} = (r_{1}, r_{2}, \cdots, r_{T})$ and the answer $y$ from the knowledge base $\mathcal{KB}$. In this section, we first present the design of our model architecture, and then explain the training and inference algorithms in details.  
+ Given a question $q$ and its topic entity $e_0$ (identified by entity linking), our model aims to find the reasoning path $\mathbf{r} = (e_{0},r_{1},e_{1},r_{2}, \cdots,e_{T-1}, r_{T})$ and the answer $y$ from the knowledge base $\mathcal{KB}$. In this section, we first present the design of our model architecture, and then explain the training and inference algorithms in details.  
 
 \subsection{Model Architecture}
 
@@ -59,30 +58,30 @@ where $\phi$ represents one layer neural network with ReLU activation, $W^{(*)}$
 
 
 \subsubsection{Objective Functions}
-\kechen{add $e$ to path}
+
 The model can be trained in two ways: to maximize the joint probability $P(y,\mathbf{r}|q,\mathcal{KB})$, or to maximize answer probability $P(y|q,\mathcal{KB})$ directly by marginalizing out relation paths $\mathbf{r}$. The former one was adopted by many existing KBQA papers \cite{DBLP:conf/coling/ZhouHZ18}, while the later is novel to KBQA task. We now describe our objective in detail. Without loss of generality, we will omit $\mathcal{KB}$ in these formulas.
 
-At a timestep $t$, our model take input features from three sources: question context $c$, previous entity $e$, and path history $h'$. The probability of predicting the relation $r_t$ can be written using these notations as follows:
+At a timestep $t$, previous relations and entities consist the current reasoning path $\mathbf{r_t} = (e_{0},r_{1},e_{1},r_{2}, \cdots,e_{t-1})$. Our model take input features from three sources: question context $c$, previous entity $e$, and path history $h'$. The probability of predicting the relation $r_t$ can be written using these notations as follows:
 
 
 \begin{equation}
 \begin{aligned}
-P(r_t|q,r_1,r_2,...,r_{t-1}) = P(r_t|c_t, e_{t-1}, h'_t) \\
+P(r_t|q,\mathbf{r_t}) = P(r_t|c_t, e_{t-1}, h'_t) \\
        = \sum_{f_t \in (c_t,e_t,h'_t)}P(z_t^f|c_t,e_{t-1},h'_t)P(r_t|f_t)
 \end{aligned}
 \end{equation}
 
-Accordingly, the log probability of a sequence of relations $(r_1,...,r_{T})$ is defines as:
+%Accordingly, the log probability of a sequence of relations $(r_1,...,r_{T})$ is defines as:
 
-\begin{equation}
-\begin{aligned}
-P(\mathbf{r}|q) &= \prod_{t=1}^{T} P(r_t|q,r_1,r_2,...,r_{t-1}) 
-\end{aligned}
-\end{equation}
+%\begin{equation}
+%\begin{aligned}
+%P(\mathbf{r}|q) &= \prod_{t=1}^{T} P(r_t|q,r_1,r_2,...,r_{t-1}) 
+%\end{aligned}
+%\end{equation}
 
 We also define the probability of generating an answer $y$ given a relation path $\mathbf{r}$ as:
 \begin{align}
-P(y|\mathbf{r},q) = 1/N
+P(e|\mathbf{r},q) = 1/N
 \end{align}
 
 Finally, our training goal is to maximize the probability of generating the correct answer, and the training objective can be written as:
@@ -90,7 +89,7 @@ Finally, our training goal is to maximize the probability of generating the corr
 \begin{equation}
 \begin{aligned}
 \mathcal{L} &= -\log P(y|q) \\
-            &= -\log(\sum_{\mathbf{r}\in \mathcal{P}}( P(y|\mathbf{r},q)P(\mathbf{r}|q))\\
+            &= -\log(\sum_{\mathbf{r}\in \mathcal{P}} P(y|\mathbf{r},q)\sum_{t=1}^T P(r|\mathbf{r},q)P(e|\mathbf{r},q))\\
             &= -\log(\sum_{\mathbf{r}\in \mathcal{P}} \sum_{t=1}^T\sum_{j=1}^{\mathcal{R}}\hat{o}^j_t{o^j_t} 1/N)
 \end{aligned}
 \label{obj:latent}
