@@ -11,11 +11,11 @@
 \subsection{Model Architecture}
 
 
-Figure \ref{fig:model} illustrates the architecture of our model, which contains four main components as follows:
+Figure \ref{fig:model} illustrates the architecture of our model. Our base model is similar to a RNN structure.
 
 \subsubsection{Question Encoding} Given an input question $q=(w_0, w_1, \cdots, w_{|q|-1})$, we wish to learn different question context representations to show different reasoning focus at each hop. The model feeds words to an embedding layer to acquire pre-trained word embeddings $\varepsilon(w)$. 
 % $\varepsilon(\cdot)$ function represents gathering embedding of the input from the corresponding pre-trained embeddings matrix. 
-To reduce computational complexity, we do not use RNN to fine tune embeddings in a traditional sequence-to-sequence fashion. The output word embeddings are combined in different ways based on attention weights learned by relation prediction module at each hop.
+To reduce computational complexity, we do not use RNN to fine tune embeddings in a traditional sequence-to-sequence fashion, which significantly reduces the training time. The output word embeddings are combined in different ways based on attention weights learned by relation prediction module at each hop.
 
 
 %\subsubsection{Reasoning Decoding} The decoding module consists of relation prediction module and entity prediction module.
@@ -40,13 +40,9 @@ c_t = \sum_{0\leq j\leq |q|-1}\alpha_{tj}\varepsilon(w_j)
 
 where $a$ is a parameterized feed-forward neural network to calculate the similarity score of two inputs, and $c_t$ is the output of attention module as the question context vector. %After having all above computations done, 
 
-The model then concatenates temporary hidden state $h_{t}'$, entity representation $\varepsilon(e_{t-1})$, and question context $c_t$ together, and pass the concatenation through an gating function $g(\cdot)$. This gating mechanism equips the model with ability to assign different wights on different features. At last, the model has a \textit{Softmax} output layer to generate probabilities to each candidate relation.  The process can be formally described by the following equations:
+The model then concatenates temporary hidden state $h_{t}'$, entity representation $\varepsilon(e_{t-1})$, and question context $c_t$ together, and pass the concatenation through a linear transformation $f$ with ReLU activation. The process can be formally described by the following equations:
 \begin{align}
-[z_t^{h'}, z_t^{e}, z_t^{c}] = g([h'_{t}; \varepsilon(e_{t-1}); c_t])
-\end{align}
-\vspace{-2ex}
-\begin{align}
-h_{t} = \phi(z^{h'}_tW^{h'}h'_{t}+z^{e}_t W^{e}\varepsilon(e_{t-1})+z^{c}_t W^{c}c_{t})
+h_t = ReLU(f([h'_{t}; \varepsilon(e_{t-1}); c_t]))
 \end{align}
 \vspace{-2ex}
 \begin{align}
@@ -54,46 +50,34 @@ o^j_t = \frac{\exp <h_t,\varepsilon(r_j)>}{\sum_k\exp <h_t,\varepsilon(r_k)>}
 \label{eq:r_prob}
 \end{align}
 
-where $\phi$ represents one layer neural network with ReLU activation, $W^{(*)}$ are parameter matrices, $\varepsilon$ is the embedding gathering function, $<>$ outputs the dot product between two inputs, and $o_t^j$ is the probability of predicting the $j$-th relation in $\mathcal{R}$ at timestep $t$. After the model predicts a relation $r_t$, it can simply execute a query $(e_{t-1}, r_{t-1}, ?e_t)$ to get an entity $e_t$ from the knowledge base. The other way to collect this entity is via a soft lookup with a key-value memory network structure. We provide more details in the appendix.
+where $\varepsilon$ is the embedding gathering function, $<>$ outputs the dot product between two inputs, and $o_t^j$ is the probability of predicting the $j$-th relation in $\mathcal{R}$ at timestep $t$. After the model predicts a relation $r_t$, it can simply execute a query $(e_{t-1}, r_{t-1}, ?e_t)$ on knowledge base to get an entity $e_t$ from the knowledge base, and feed it to next timestep. The other way to collect this entity is via a soft lookup with a key-value memory network structure. We provide more details in the appendix.
 
 
 \subsubsection{Objective Functions}
 
 The model can be trained in two ways: to maximize the joint probability $P(y,\mathbf{r}|q,\mathcal{KB})$, or to maximize answer probability $P(y|q,\mathcal{KB})$ directly by marginalizing out relation paths $\mathbf{r}$. The former one was adopted by many existing KBQA papers \cite{DBLP:conf/coling/ZhouHZ18}, while the later is novel to KBQA task. We now describe our objective in detail. Without loss of generality, we will omit $\mathcal{KB}$ in these formulas.
 
-At a timestep $t$, previous relations and entities consist the current reasoning path $\mathbf{r_t} = (e_{0},r_{1},e_{1},r_{2}, \cdots,e_{t-1})$. Our model take input features from three sources: question context $c$, previous entity $e$, and path history $h'$. The probability of predicting the relation $r_t$ can be written using these notations as follows:
-
-
-\begin{equation}
-\begin{aligned}
-P(r_t|q,\mathbf{r_t}) = P(r_t|c_t, e_{t-1}, h'_t) \\
-       = \sum_{f_t \in (c_t,e_t,h'_t)}P(z_t^f|c_t,e_{t-1},h'_t)P(r_t|f_t)
-\end{aligned}
-\end{equation}
-
-%Accordingly, the log probability of a sequence of relations $(r_1,...,r_{T})$ is defines as:
-
-%\begin{equation}
-%\begin{aligned}
-%P(\mathbf{r}|q) &= \prod_{t=1}^{T} P(r_t|q,r_1,r_2,...,r_{t-1}) 
-%\end{aligned}
-%\end{equation}
-
-We also define the probability of generating an answer $y$ given a relation path $\mathbf{r}$ as:
+At a timestep $t$, previous relations and entities consist the current reasoning path $\mathbf{r_t} = (e_{0},r_{1},e_{1},r_{2}, \cdots,e_{t-1})$. Our model first predict a relation $r_t$ from the set of relation candidates $\mathcal{R}$:
 \begin{align}
-P(e|\mathbf{r},q) = 1/N
+P(r_t|q,\mathbf{r_t}) = \sum_{j=1}^{\mathcal{R}}\hat{o}^j_t{o^j_t}
 \end{align}
-
+Given the predicted $r_t$ and the previous entity $e_{t-1}$, we can get a set of entities $e_t$ based on knowledge base lookup. We define the number of founded $e_t$ as $|e_t|$. Then we can define the probability of generating an entity $e_t$ given a relation path $\mathbf{r}$ as: \kechen{add some explanations that we why define in this way. and polish english}
+\begin{align}
+P(e|\mathbf{r},q) = 1/|e_t|
+\end{align}
 Finally, our training goal is to maximize the probability of generating the correct answer, and the training objective can be written as:
 
 \begin{equation}
 \begin{aligned}
 \mathcal{L} &= -\log P(y|q) \\
             &= -\log(\sum_{\mathbf{r}\in \mathcal{P}} P(y|\mathbf{r},q)\sum_{t=1}^T P(r|\mathbf{r},q)P(e|\mathbf{r},q))\\
-            &= -\log(\sum_{\mathbf{r}\in \mathcal{P}} \sum_{t=1}^T\sum_{j=1}^{\mathcal{R}}\hat{o}^j_t{o^j_t} 1/N)
+            &= -\log(\sum_{\mathbf{r}\in \mathcal{P}} \sum_{t=1}^T\sum_{j=1}^{\mathcal{R}}\hat{o}^j_t{o^j_t} 1/|e_t|)
 \end{aligned}
 \label{obj:latent}
 \end{equation}
+
+
+%To further improve the diversity of the outputs, we follow \newcite{}'s idea to optimize mutual information instead of log likelihood. Specifically, we observe that 
 
 
 \subsection{Training and Inference}
@@ -141,7 +125,7 @@ where $\mathcal{P}$ is the set of relation paths of one QA sample labeled in tra
 With our proposed training objective, in which the multiplication operation is replaced by the summation operation, it suffices to concentrate only on reasonable reasoning paths for each QA pair. Using Jensen's inequality, one can show that this marginal probability objective maximize the answer probability directly which is the learning goal of KBQA task, while joint probability objective maximizes a lower bound. Also, one can easily prove that the above objective pushes the model to assign both high or low probabilities for $P(y|\mathbf{r},q)$ and $P(\mathbf{r}|q)$. That is, a good relation path (high probability to point to the correct answer) also gets a high probability allocation. %A benefit of using our model with this objective is that the key hashing process filters out irrelevant memory slots from the full search space. During training, the smaller relation paths that point to an answer set, the larger probability mass will be assigned to this relation path. %This feature satisfies our definition of good path in the introduction. 
 
 
-Training this objective requires summing up all valid relation paths from the topic entity to the answer entity in the knowledge base. Thus evaluating this objective exactly can be intractable. As we showed in the early example, some relation paths ($R_5, R_6, R_7$ in Figure \ref{QAPaths}) are not very helpful to training, and thus should be removed from training or assigned low probabilities. To achieve this goal, we first apply depth first search (DFS) algorithm with maximize 3 hops to get valid path candidates. The algorithm starts traversal from the topic entity node and ends at the answer entity node. All possible paths between the topic entity and the answer entity within 3 hops are extracted as candidates. We then set a threshold to remove paths which point to too many entities at the last hop. To further filter out bad relation paths, we propose to dynamically choose relation paths deemed as most probable by the current model during training. The overall training procedure is summarized in Algorithm \ref{alg:train}. Note that training with this algorithm does not require ground truth relation path label. Labeled relation path can be seen as plus, but not necessary. If it is given, we can either replace $\mathcal{P}$ with ground truth relation set, or train the model with joint probability objective using ground truth label first and transit to marginal probability objective after a few epochs.
+Training this objective requires summing up all valid relation paths from the topic entity to the answer entity in the knowledge base. Thus evaluating this objective exactly can be intractable. As we showed in the early example, some relation paths ($R_5, R_6, R_7$ in Figure \ref{QAPaths}) are not very helpful to training \kechen{P(y|R567) is very small in the marginalization}, and thus should be removed from training or assigned low probabilities. To achieve this goal, we first apply depth first search (DFS) algorithm with maximize 3 hops to get valid path candidates. The algorithm starts traversal from the topic entity node and ends at the answer entity node. All possible paths between the topic entity and the answer entity within 3 hops are extracted as candidates. We then set a threshold to remove paths which point to too many entities at the last hop. To further filter out bad relation paths, we propose to dynamically choose relation paths deemed as most probable by the current model during training. The overall training procedure is summarized in Algorithm \ref{alg:train}. Note that training with this algorithm does not require ground truth relation path label. Labeled relation path can be seen as plus, but not necessary. If it is given, we can either replace $\mathcal{P}$ with ground truth relation set, or train the model with joint probability objective using ground truth label first and transit to marginal probability objective after a few epochs.
 
 \begin{algorithm}
   \SetKwInOut{Input}{Input}
