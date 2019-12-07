@@ -9,35 +9,12 @@
 %With our proposed training objective, in which the multiplication operation is replaced by the summation operation, it suffices to concentrate only on reasonable reasoning paths for each QA pair. Also, using Jensen's inequality, one can show that this marginal probability objective maximize the answer probability directly which is the learning goal of KBQA task, while joint probability objective maximize a lower bound on the log likelihood.   \cheng{list issues...cheng!} 
 
 
-\subsection{Ablation Study}
 
-\begin{table}[h]\centering
-\resizebox{0.9\columnwidth}{!}{
-\begin{tabular}{|l|c|c|}
-\hline
-Setting                          & WQSP & CWQ \\
-\hline
-$\textsc{BEST}$          & $-$69.3 () &$-$ ()     \\
-$\textsc{BEST}-no inference filter out$          & $-$ () &$-$ ()     \\
-$\textsc{BEST} - gating - f^{entity}$          & $-$ () &$-$ ()     \\
-$\textsc{BEST} - gating$          & $-$ () &$-$ ()     \\
-$\textsc{BEST} - f^{entity}$          & $-$ () & $-$ ()      \\
-$\textsc{BEST} - multiple\_path  $        & $-$ () & $-$ ()      \\
-$\textsc{BEST} - marginal\_obj  $        & $-$ () & $-$ ()        \\
-$\textsc{BEST} - ensemble\_pred$          & $-$ () & $-$ ()       \\
-\hline
-\end{tabular}
-}
-\caption{\fontsize{10}{12}\selectfont We report F1 and standard deviation. \textsc{BEST} represents XXX.}\label{tab:wqsp_cwq_ablation}
-\end{table}
-
-In order to disentangle the contribution of different factor in our proposed method, we present a feature ablation test in Figure \ref{tab:wqsp_cwq_ablation}.
-
-\subsection{Case Study}
+\section{Case Study}
 
 %\subsection{Threshold Analysis}
 
-Our model requires inference using the current model to select training samples for next batch during training (see line 6 in Algorithm \ref{alg:train}). This step plays an important role in filtering out bad relation paths based on context information. For example, a sample question from \textsc{WebQuestionSP} is \textit{who was the owner of kfc?}, the DFS algorithm can easily extract two ``correct'' relation paths starting from the topic entity \textit{kfc} directing to the ground truth answer \textit{Colonel Sanders}: \textit{kfc $\rightarrow$ organization.organization.founders $\rightarrow$ Colonel Sanders} and \textit{kfc $\rightarrow$ advertisingcharacters.product.advertising\_characters $\rightarrow$ Colonel Sanders}. However, the second path is totally wrong given that the relation path is irrelevant to the given question. \textit{Colonel Sanders} happens to be the advertising character of \textit{kfc}, but this cannot be generalized to other cases. Without using the trained model to filter out this irreverent path, the model may learn incorrect map from \textit{who is the owner...} to the relation \textit{advertising\_characters}. In our experiment, we observe that when we train our model with all relation paths generated from DFS algorithm without using this filtering strategy (\emph{i.e.} $k_2=inf$), the F1 score drops dramatically from 68.5 to 52.5 on WQSP.
+Our model requires inference using the current model to select training samples for next batch during training (see line 6 in Algorithm \ref{alg:train}). This EM style training approach helps us filter out bad relation paths based on context information. For example, a sample question from \textsc{WebQuestionSP} is \textit{who was the owner of kfc?}, the DFS algorithm can easily extract two ``correct'' relation paths starting from the topic entity \textit{kfc} directing to the ground truth answer \textit{Colonel Sanders}: \textit{kfc $\rightarrow$ organization.organization.founders $\rightarrow$ Colonel Sanders} and \textit{kfc $\rightarrow$ advertisingcharacters.product.advertising\_characters $\rightarrow$ Colonel Sanders}. However, the second path is totally wrong given that the relation path is irrelevant to the given question. \textit{Colonel Sanders} happens to be the advertising character of \textit{kfc}, but this cannot be generalized to other cases. Without using the trained model to filter out this irreverent path, the model may learn incorrect map from \textit{who is the owner...} to the relation \textit{advertising\_characters}. In our experiment, we observe that when we train our model with all relation paths generated from DFS algorithm without using this filtering strategy (\emph{i.e.} $k_2=inf$), the F1 score drops dramatically from XXX to XXX on WQSP shown in Table \ref{tab:wqsp_cwq_ablation}. Next we demonstrate the benefit of maximizing mutual information instead of likelihood. A question in WQSP test set is \textit{who did benjamin franklin get married to?}. We observe that there are 13 questions are using \textit{Benjamin Franklin} as the topic entity in training set, but most of them are about his invention and none of them is about marriage. With such a strong prior on \textit{Benjamin Franklin}, the model trained with MLE is very likely to predict a relation path related to his invention, while after we train our model with mutual information, we get correct predictions. Table \ref{tab:wqsp_cwq_ablation} shows that we get XXX performance boost by using mutual information.
 
 
 

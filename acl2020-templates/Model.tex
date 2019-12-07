@@ -1,56 +1,61 @@
 \begin{figure*}[t]
 \includegraphics[width=2.1\columnwidth]{figs/model2.png}
-\caption{\fontsize{10}{12}\selectfont A running example of our model to answer question \textit{What city is fc\_schalke\_04 in?}. The entity linker extracts \textit{fc\_schalke\_04} as the topic entity. $[\textit{\textless sop\textgreater}, \textit{Organization.headquarters} , \textit{Mailing\_address.city\_town, \textless eop\textgreater}]$ is the predicted relation path and \textit{Gelesenkirchen} is the predicted answer. In the diagram, we use $\bigoplus$ to represent concatenation. }
+\caption{\fontsize{10}{12}\selectfont An illustration of how our model answers the question "What city is fc\_schalke\_04 in?". The entity linker extracts \textit{fc\_schalke\_04} as the topic entity. $[\textit{\textless sop\textgreater}, \textit{Organization.headquarters} , \textit{Mailing\_address.city\_town, \textless eop\textgreater}]$ is the predicted relation path \cheng{Shall we include entities in the middle in the path? Are sop and eop defined already?} and \textit{Gelesenkirchen} is the predicted answer. The symbol $\bigoplus$ represents concatenation. }
 \label{fig:model}
 \end{figure*}
 
 
 \section{Model}
- Given a question $q$ and its topic entity $e_0$ (identified by entity linking), our model aims to find the reasoning path $\mathbf{r} = (e_{0},r_{1},e_{1},r_{2}, \cdots,e_{T-1}, r_{T})$ and the answer $y$ from the knowledge base $\mathcal{KB}$. In this section, we first present the design of our model architecture, and then explain the training and inference algorithms in details.  
+ Given a question $q$ and its topic entity $e_0$ (identified by entity linking \cheng{Did we mention entity linking before?}), our model aims to find the reasoning path $\mathbf{r} = (e_{0},r_{1},e_{1},r_{2}, \cdots,e_{T-1}, r_{T})$ and the answer $y$ from the knowledge base $\mathcal{KB}$. In this section, we first present the design of our model architecture, and then explain the training and inference algorithms in detail.  
 
 \subsection{Model Architecture}
 
 
 Figure \ref{fig:model} illustrates the architecture of our model. Our base model is similar to a RNN structure.
 
-\subsubsection{Question Encoding} Given an input question $q=(w_0, w_1, \cdots, w_{|q|-1})$, we wish to learn different question context representations to show different reasoning focus at each hop. The model feeds words to an embedding layer to acquire pre-trained word embeddings $\varepsilon(w)$. 
+\subsubsection{Question Encoding} All the words $w_0,w_1,\cdots,w_{|q|-1}$ in the given question $q$ are first sent to a fixed embedding layer to acquire word embeddings $\varepsilon(w_0),\varepsilon(w_1),\cdots,\varepsilon(w_{|q|-1})$. \cheng{Does the symbol match the one in diagram?} To reduce computational cost, the embedding layer is pre-trained and not updated during RNN training. Because we wish to learn different question context representations to show different reasoning focus at each hop, the  word embeddings are combined in different ways to form the question embedding  based on attention weights learned by relation prediction module at each hop.
 % $\varepsilon(\cdot)$ function represents gathering embedding of the input from the corresponding pre-trained embeddings matrix. 
-To reduce computational complexity, we do not use RNN to fine tune embeddings in a traditional sequence-to-sequence fashion, which significantly reduces the training time. The output word embeddings are combined in different ways based on attention weights learned by relation prediction module at each hop.
+
 
 
 %\subsubsection{Reasoning Decoding} The decoding module consists of relation prediction module and entity prediction module.
 
-\subsubsection{Relation Prediction} We model relation prediction as a sequence prediction task using recurrent neural network with gated recurrent units (GRU). The hidden representations of GRU unit and predicted relation are denoted by $h$ and $r$ respectively. At timestep $t$, the model attends on particular words from the input question $q$ via attention mechanism \cite{DBLP:journals/corr/BahdanauCB14}:
-\begin{align}
-h'_{t} = GRU(h_{t-1}, r_{t-1}) 
-\end{align}
-\vspace{-3ex}
-\begin{align}
-u_{tk} = a(h'_{t},\varepsilon(w_k))
-\end{align}
-\vspace{-3ex}
-\begin{align}
-\alpha_{tk} = \frac{\exp (u_{tk})}{\sum_{0\leq j\leq |q|-1}\exp (u_{tj})}
-\end{align}
-\vspace{-1ex}
-%\[\alpha_{tk} = \frac{u_{tk}}{\sum_{j}u_{tj}}\]
-\begin{align}
-c_t = \sum_{0\leq j\leq |q|-1}\alpha_{tj}\varepsilon(w_j)
-\end{align}
+\subsubsection{Relation Prediction} \cheng{What do you mean by prediction}
+We model relation prediction as a sequence prediction task using recurrent neural network with gated recurrent units (GRU). The hidden representations of GRU unit and predicted relation at timestep $t$ are denoted by $h_t$ and $r_t$ respectively. At timestep $t$, the model relies on the attention mechanism~\cite{DBLP:journals/corr/BahdanauCB14} to produce a question context vector $c_t$. Specifically we first apply GRU to produce a temporary hidden state  $h_{t}'=GRU(h_{t-1}, r_{t-1})$, and then apply a parameterized feed-forward neural network $a$ to calculate the similarity score $u_{tk} = a(h'_{t},\varepsilon(w_k))$ of two inputs $h'_{t}$ and $\varepsilon(w_k)$,  and then these scores are normalized into attention weights $\alpha_{tk}=\frac{\exp (u_{tk})}{\sum_{0\leq j\leq |q|-1}\exp (u_{tj})}$, which are used to produce the question context vector $c_t=\sum_{0\leq j\leq |q|-1}\alpha_{tj}\varepsilon(w_j)$. \cheng{Should this be put in the question encoding section?}
+% \begin{align}
+% h'_{t} = GRU(h_{t-1}, r_{t-1}) 
+% \end{align}
+% \vspace{-3ex}
+% \begin{align}
+% u_{tk} = a(h'_{t},\varepsilon(w_k))
+% \end{align}
+% \vspace{-3ex}
+% \begin{align}
+% \alpha_{tk} = \frac{\exp (u_{tk})}{\sum_{0\leq j\leq |q|-1}\exp (u_{tj})}
+% \end{align}
+% \vspace{-1ex}
+% %\[\alpha_{tk} = \frac{u_{tk}}{\sum_{j}u_{tj}}\]
+% \begin{align}
+% c_t = \sum_{0\leq j\leq |q|-1}\alpha_{tj}\varepsilon(w_j)
+% \end{align}
 
-where $a$ is a parameterized feed-forward neural network to calculate the similarity score of two inputs, and $c_t$ is the output of attention module as the question context vector. %After having all above computations done, 
+ %After having all above computations done, 
 
-The model then concatenates temporary hidden state $h_{t}'$, entity representation $\varepsilon(e_{t-1})$, and question context $c_t$ together, and pass the concatenation through a linear transformation $f$ with ReLU activation. The process can be formally described by the following equations:
+The model then concatenates temporary hidden state $h_{t}'$, entity representation $\varepsilon(e_{t-1})$, and question context $c_t$ together, and pass the concatenation through a linear transformation $f$ with ReLU activation. The process can be  written as:
 \begin{align}
 h_t = ReLU(f([h'_{t}; \varepsilon(e_{t-1}); c_t]))
 \end{align}
-\vspace{-2ex}
+
+The probability of predicting the $j$-th relation in $\mathcal{R}$ at timestep $t$ is
+
 \begin{align}
 o^j_t = \frac{\exp <h_t,\varepsilon(r_j)>}{\sum_k\exp <h_t,\varepsilon(r_k)>}
 \label{eq:r_prob}
 \end{align}
 
-where $\varepsilon$ is the embedding gathering function, $<>$ outputs the dot product between two inputs, and $o_t^j$ is the probability of predicting the $j$-th relation in $\mathcal{R}$ at timestep $t$. After the model predicts a relation $r_t$, it can simply execute a query $(e_{t-1}, r_{t-1}, ?e_t)$ on knowledge base to get an entity $e_t$ from the knowledge base, and feed it to next timestep. The other way to collect this entity is via a soft lookup with a key-value memory network structure. We provide more details in the appendix.
+where $\varepsilon$ is the embedding  function, $<>$ is the dot product between two inputs. 
+
+After the model predicts a relation $r_t$, \cheng{What do you mean by predicting a relation?} it can simply execute a query $(e_{t-1}, r_{t-1}, ?e_t)$ on knowledge base to get an entity $e_t$ from the knowledge base, and feed it to next timestep. Another way to collect this entity is via a soft lookup with a key-value memory network structure. We provide more details in the appendix.
 
 
 \subsubsection{Objective Functions}

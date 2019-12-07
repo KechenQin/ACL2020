@@ -64,3 +64,86 @@ A general neural network solution to KBQA is to encode the candidates of relatio
 %In this paper, we focus on the second category, \emph{i.e.} the embedding based approach, which can either predict the answer directly (XXX) or search (a) relation path(s) leading to the final answer entity (XXX). Conventionally, the relation path searching algorithm consists two main subtasks
 topic/focus--entity linking and relation extraction. The topic--entity linking gives the system an entry point to start searching, and the relation extraction is used to search relation paths leading to the final answer. %Unlike the simple single relation questions, for complex questions, the path to the final answer may contains multiple hops, where one hop is defined as a searching step between one entity to another via a single relation. 
 For entity linking, there exists many off-the-shell tools  \cite{DBLP:journals/corr/YangC16a} that can give decent performance, and most of the current KBQA models rely on them. For relation extraction, traditional approaches consider all the paths as candidates and search for the best one among them using ranking algorithms.}
+
+
+We also implement a baseline version of our method with only the question encoding and relation prediction modules. By removing entity lookup and answer prediction modules, our model works similarly as a vanilla RNN model with attention. The baseline model generates a sequence of relations and uses them to fetch the final answer from the knowledge base by following them sequentially. By comparing the last two rows in Table \ref{tab:qpl}, we can see that, by adding the entity lookup module, there is a significant performance boost. It equips our model with the ability not only to search but also to interact with the knowledge base. It can be further observed for Table \ref{tab:qpl} that our model performs much better than the conventional KV-MemNN, which has an entity lookup module, but does not contain a relation prediction module. We believe that this is because the intermediate key-value operations benefit from the direct relation supervision. Therefore, our model can be treated as a good combination of RNN-attention model and KV-MemNN. 
+
+
+\subsubsection{WebQuestionSP \& ComplexWebQuestion-1.1}
+\kechen{only report marginal prob in table 2 and move others to table 3}
+
+\textsc{WebQuestionSP} is a dataset that has been widely used for relation extraction and end-to-end KBQA task. It contains 1 or 2 hops questions with ground truth relation path labels. Table \ref{tab:wqsp_cwq} shows that our model with marginal training objective performs much better than all other methods. KBQA-GST \cite{DBLP:conf/ijcai/LanW019} relies on additional annotations, such as textual description of the knowledge base, and using existing models to generate features. The experiments from their papers show that these generated extra features play a very important role in the system, and their F1 score drops from 67.9 to 61.5 by removing the semantic feature. Similarly, HR-BiLSTM requires relation path annotations to train their model, which are not accessible in many KBQA application scenarios. In contrast, our model supports a training method that takes only raw QA pairs as its input and does not rely on any additional labels or linguistic features. By comparing performance of using different objectives as shown in the second block of the table, we can see that there is a significant improvement by considering multiple relation paths in training. The performance gap between joint objective and marginal objective demonstrates that our proposed marginal objective is a much better way to train a model with multiple relation paths. We do not observe a very different results by using or not using labeled relation paths, which is a good signal. 
+Previous stateof-the-art method NSM is only tested on a single dataset. It is unclear whether they could perform consistently well on different datasets. Our full model is shown to consistently work well on three datasets.
+
+\begin{table}[h]\centering
+\resizebox{1.01\columnwidth}{!}{
+\begin{tabular}{|l|c|c|}
+\hline
+                           & WQSP & CWQ \\
+\hline
+KV-MemNN* \cite{DBLP:conf/emnlp/MillerFDKBW16}    &  38.6 &  -      \\
+STAGG\_answer* \cite{DBLP:conf/acl/YihRMCS16}  &  66.8 &  -      \\
+NSM* \cite{DBLP:conf/acl/LiangBLFL17}  &  69.0 &  -      \\
+GRAFT-Net* \cite{DBLP:conf/emnlp/SunDZMSC18}                &  62.8 &  26.0      \\
+\hline
+STAGG\_SP \cite{DBLP:conf/acl/YihRMCS16}  &  \textbf{71.7} &  -      \\
+HR-BiLSTM \cite{DBLP:conf/acl/YuYHSXZ17}                  & 62.3 & 31.2         \\
+KBQA-GST \cite{DBLP:conf/ijcai/LanW019}          &  67.9 &  36.5      \\
+\hline
+Our Method-joint\_prob             &     62.1  &   38.0        \\
+Our Method-joint\_prob\_short             &     58.4  &           \\
+Our Method-joint\_prob\_random             &     58.8  &           \\
+Our Method-joint\_prob\_multiple\_paths             &  63.9     &     -       \\
+%Our Method-marginal\_prob\_with\_true\_label             &    \textbf{68.5}    &       34.8     \\
+Our Method-marginal\_prob*             &   67.8    &      \textbf{38.4}    \\
+%Our Method-obj3+new\_decode  &     &          \\
+\hline
+\end{tabular}
+}
+\caption{\fontsize{10}{12}\selectfont We report F1 on WQSP and CWQ. $*$ means this method only requires the final answer as the annotation, and other methods need annotated relation paths or some other annotations.}\label{tab:wqsp_cwq}
+\end{table}
+
+\begin{table}[h]\centering
+\resizebox{1.01\columnwidth}{!}{
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+                               & \multicolumn{2}{c|}{WQSP}     & \multicolumn{2}{c|}{CWQ}     \\ \hline
+                               & 1 path & \textgreater{}1 path & 1 path & \textgreater 1 path \\ \hline
+Our Method-joint\_prob         & 60.8   & 63.3                 &    &                \\ 
+Our Method-joint\_prob\_short  & 60.0    & 57.0                      &        &                     \\ 
+Our Method-joint\_prob\_random &  59.7      &  58.1                    &        &                     \\ 
+Our Method-marginal\_prob      & 66.0   & 69.3                 &   &                 \\ \hline
+\end{tabular}
+}
+\caption{\fontsize{10}{12}\selectfont We report F1 on WQSP and CWQ.}\label{tab:wqsp_cwq_path_break}
+\end{table}
+
+
+\begin{table*}[t]\centering
+\resizebox{2.1\columnwidth}{!}{%resize the table
+\begin{tabular}{l|l|l}
+\hline
+\multicolumn{3}{c}{Question: what state does romney live in?  \ \ \        Answer: Massachusetts  \ \ \       Topic entity: romney}                                                                                                                                            \\ \hline
+.89:children & .29:education\_institution,state\_province\_region & .83:\textbf{places\_lived,location} \\ \hline
+.06:\textbf{government\_positions,jurisdiction\_of\_office} & .25:\textbf{places\_lived,location} & .12:\textbf{government\_positions,jurisdiction\_of\_office} \\ \hline
+.04:\textbf{government\_positions,office\_position\_or\_title} & .25:\textbf{government\_positions,district\_represented} & .04:\textbf{government\_positions,district\_represented} \\ \hline
+.00:\textbf{government\_positions,district\_represented} & .01:\textbf{government\_positions,jurisdiction\_of\_office} & .01:place\_of\_birth,state \\ \hline
+.0:place\_of\_birth & .01:place\_of\_birth,state & .00:education,degree \\ \hline
+.00:jurisdiction\_of\_office & .01:sibling,place\_of\_birth & .00:election\_campaigns \\ \hline 
+\multicolumn{3}{c}{Question:where did madonna grew up?\ \ \       Answer: Bay City\ \ \    Topic entity: madonna}                                                                                                                                            \\ 
+\hline
+.99:\textbf{place\_of\_birth} & .50:nominated\_for & .47:nominated\_for,featured\_film\_locations \\ \hline
+.00:nominated\_for & .16:nominated\_for,featured\_film\_locations & .40:\textbf{place\_of\_birth} \\ \hline
+.00:\textbf{place\_lived.location} & .11:compositions & .11:\textbf{place\_lived.location,place} \\ \hline
+.00:place\_lived.location,containedby & .09:\textbf{place\_lived.location} & .00:nominated\_for \\ \hline
+.00:compositions & .08:\textbf{place\_of\_birth} & .00:\textbf{place\_lived.location} \\ \hline
+.00:religion & .01:award\_nominations,nominated\_for & .00:\textbf{place\_lived.location,region} \\ \hline
+
+
+\end{tabular}
+}\caption{\fontsize{10}{12}\selectfont Two running examples from \textsc{WebQuestionSP} dataset. We show the probability $P(\mathbf{r}|q)$ before the inferred relation path. Relation paths that lead to the correct answers are highlighted in bold. The three columns are corresponding to the results by using joint objective with single path, joint objective with multiple paths, and marginal objective with multiple paths. Due to space limit, we only show the partial name of a relation in the example and the probability less than .01 is shown as .00.}\label{tab:case}
+\end{table*}
+
+\subsubsection{ComplexWebQuestion-1.1}
+
+This dataset is designed to study complex questions by adding more constraints to questions in \textsc{WebQuestionSP}. It contains more difficult questions than the first two datasets.  We report the experimental results in Table \ref{tab:wqsp_cwq}. Note that this dataset does not come with multiple relation path labels, so the corresponding experiment is not available. Our model outperforms all other models in terms of hits@1, and slightly worse than KBQA-GST in terms of F1 score, but again, KBQA-GST requires many additional information to train. Different from the observation in \textsc{WebQuestionSP} dataset, we see that there is a performance degradation when the model is not pre-trained with ground truth relations. It is because that the model can easily make errors in early stage and gets stuck with these errors. In contrast, our model on WQSP does not suffer from this problem because the relation path is much shorter, and thus it is not hard to generate correct training samples at the beginning of the training. To compare it with existing methods, our model still performs better than GRAFT-Net, which is the state-of-the-art results without using any additional labels.
