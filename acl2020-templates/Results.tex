@@ -1,7 +1,7 @@
 \section{Results and Analysis}
 
 \subsection{Experimental Setup}
-We conduct experiments on 3 multi-hop KBQA datasets, \textsc{WebQuestionSP} (WQSP) \cite{DBLP:conf/acl/YihCHG15}, \textsc{ComplexWebQuestion}-1.1 (CWQ) \cite{DBLP:journals/corr/abs-1807-09623}, and \textsc{PathQuestion-Large} (PQL) \cite{DBLP:conf/coling/ZhouHZ18}, and use the original train/dev/test split. The original PQL release contains two subsets: PQL2H and PQL3H, which contains only 2-hop and 3-hop questions correspondingly. \newcite{DBLP:conf/naacl/ChenCCNK19} then combined these two subsets and renamed the unified dataset as PQL+. Table \ref{tab:stats} contains statistics of these datasets. For questions with multiple answers, we use each answer to construct a question-answer (QA) pair. All of the three datasets use Freebase \cite{freebase:datadumps} as the supporting knowledge base. For WQSP and CWQ, we build a subgraph in a similar way as in \cite{DBLP:conf/emnlp/SunDZMSC18}, in order to generate the entity and relation candidates. For PQL, the original paper provides a subgraph of the Freebase. 
+We conduct experiments on 3 multi-hop KBQA datasets, \textsc{WebQuestionSP} (WQSP) \cite{DBLP:conf/acl/YihCHG15}, \textsc{ComplexWebQuestion}-1.1 (CWQ) \cite{DBLP:journals/corr/abs-1807-09623}, and \textsc{PathQuestion-Large} (PQL) \cite{DBLP:conf/coling/ZhouHZ18}, and use the original train/dev/test split. WQSP is a dataset that has been widely used for relation extraction and end-to-end KBQA tasks, which contains 1 or 2 hops questions. CWQ dataset is designed to study complex questions by adding more constraints to questions in \textsc{WebQuestionSP}. PQL is a small dataset used to study sequential questions. Its original release contains two subsets: PQL2H and PQL3H, which contains only 2-hop and 3-hop questions correspondingly. \newcite{DBLP:conf/naacl/ChenCCNK19} then combined these two subsets and renamed the unified dataset as PQL+. All of the three datasets use Freebase \cite{freebase:datadumps} as the supporting knowledge base. Table \ref{tab:stats} contains statistics of these datasets. 
 
 \begin{table}[h]\centering
 \resizebox{0.8\columnwidth}{!}{
@@ -17,11 +17,11 @@ PQL+  & 2924    & 365     & 367    & 3  & 30.6\%      \\
 \hline
 \end{tabular}
 }
-\caption{\fontsize{10}{12}\selectfont Statistics of the datasets. %Note that CWQ dataset does not come with relation path annotation. We get max\_hops by counting the number of relations used in the SPARQL language.
+\caption{\fontsize{10}{12}\selectfont Statistics of the datasets. In \textit{path \textgreater 1}, we use graph search algorithm to calculate what percentage of QA pairs can be associated with multiple reasoning paths. %Note that CWQ dataset does not come with relation path annotation. We get max\_hops by counting the number of relations used in the SPARQL language.
 }\label{tab:stats}
 \end{table}
 
-We implement our model using \textsc{tensorflow-1.11.0} and choose S-MART \cite{DBLP:journals/corr/YangC16a} and AllenNLP \cite{Gardner2017AllenNLP} as our entity linking tools\footnote{Entity linking results on \textsc{WebQuestionSP} can be found at \url{https://github.com/scottyih/STAGG}}. We test three different graph embedding methods \textsc{Word2vec} \cite{DBLP:journals/corr/abs-1301-3781}, \textsc{TransE} \cite{DBLP:conf/nips/BordesUGWY13}, and \textsc{HolE} \cite{DBLP:journals/corr/TrouillonN17}, and decide to use \textsc{TransE} in our final experiment based on validation performance. The best tuned parameters on development set are summarized as follows: the dynamic function for RNNs is chosen as a gated recurrent units (GRU) with 2 layers and at most 30 units in decoder. The size of the GRU unit and all other embedding layers are set as 300. The threshold $k_1$ is set to be: 15 plus the number of answers in the ground truth answer set, and $k_2$ is top 50\%. We set the dropout rate as 0.3, and train the model using an Adam optimizer with a learning rate of $0.0005$. The Beam size is set to be 12 for both training and inference. We adopt the average F1 score and the set accuracy as our main evaluation metrics. %and compare our method with the following methods: 
+For questions with multiple answers, we use each answer to construct a question-answer (QA) pair. For WQSP and CWQ, we build a subgraph in a similar way as in \cite{DBLP:conf/emnlp/SunDZMSC18}, in order to generate the entity and relation candidates. For PQL, the original paper provides a subgraph of the Freebase. We implement our model using \textsc{tensorflow-1.11.0} and choose S-MART \cite{DBLP:journals/corr/YangC16a} and AllenNLP \cite{Gardner2017AllenNLP} as our entity linking tools\footnote{Entity linking results on \textsc{WebQuestionSP} can be found at \url{https://github.com/scottyih/STAGG}}. If multiple topic entities are extracted, we use each topic entity to construct a question-answer pair. We test three different graph embedding methods \textsc{Word2vec} \cite{DBLP:journals/corr/abs-1301-3781}, \textsc{TransE} \cite{DBLP:conf/nips/BordesUGWY13}, and \textsc{HolE} \cite{DBLP:journals/corr/TrouillonN17}, and decide to use \textsc{TransE} in our final experiment based on validation performance. The best tuned parameters on development set are summarized as follows: the dynamic function for RNNs is chosen as a gated recurrent units (GRU) with 2 layers and at most 30 units in decoder. The size of the GRU unit and all other embedding layers are set as 300. The threshold $k_1$ is set to be: 15 plus the number of answers in the ground truth answer set, and $k_2$ is top 50\%. We set the dropout rate as 0.3, and train the model using an Adam optimizer with a learning rate of $0.0005$. The Beam size is set to be 12 for both training and inference. We adopt the average F1 score and the set accuracy as our main evaluation metrics. %and compare our method with the following methods: 
 It is worth noticing that: except our methods' results, all other experimental results are obtained from early published papers. Details of these models can be found from our referenced papers.
 
 %We test different objective functions on WQSP and CWQ datasets. For WQSP, the dataset is originally labeled with multiple relation paths for each QA pair. We thus use them to train our model with joint probability objective. For CWQ, which does not come with any labeled relation path, we parse the given SPARQL queries into relation paths as ground truth labels in single path experiment. The multiple paths experiment is done by using both DFS and trained single path model to extract extra relation paths which points to the answer.
@@ -29,9 +29,10 @@ It is worth noticing that: except our methods' results, all other experimental r
 
 \subsection{Experimental Results}
 
-\subsubsection{WebQuestionSP}
 
-\textsc{WebQuestionSP} is a dataset that has been widely used for relation extraction and end-to-end KBQA task. It contains 1 or 2 hops questions with ground truth relation path labels. In Table \ref{tab:wqsp_cwq} we compare our method to state-of-the-art models. All comparisons are divided into two groups based on different training supervision. The first block shows methods that only trained with final answer as the supervision, and the second block contains methods that using different additional annotations, such as the description of the entities, relation path annotations, or parsing results of the query. Experimental results that our model performs better than all other methods except NSM \cite{DBLP:conf/acl/LiangBLFL17}. Although NSM only relies on answer to train their model, it requires many prior knowledges, such as a big vocabulary to train word and graph embeddings, type of the graph property, and pre-defined templates of generating program. The experiments from their papers show that these knowledge play a very important role in the system, and their F1 score drops from 69.0 to 60.7 by not using the pretrained embeddings. In contrast, our model supports a training method that takes only raw QA pairs and the facts in knowledge base, and does not rely on any additional labels and pre-defined knowledge. Also, NSM is only tested on a single dataset, \emph{i.e.} WQSP. It is unclear whether they could perform consistently well on different datasets. Among all the methods, STAGG perform the best when additional annotation is provided, and we can see a clear drop between \textsc{STAGG\_SP} and \textsc{STAGG\_answer} when there is no such annotation available.
+
+ In Table \ref{tab:wqsp_cwq} we compare our method to state-of-the-art models. All comparisons are divided into two groups based on different training supervision. The first block shows methods that only trained with final answer as the supervision, and the second block contains methods that using extra annotations, such as parsing results of the query. Experimental results show that our model performs better than all other methods on two datasets except NSM \cite{DBLP:conf/acl/LiangBLFL17} on WQSP. Although NSM only relies on answers to train their model, it requires many prior knowledges, such as a big vocabulary to train word and graph embeddings, type of the graph property, and pre-defined templates of generating program. The experiments from their papers show that these knowledge play a very important role in the system, and its F1 score drops from 69.0 to 60.7 by not using the pretrained embeddings. %In contrast, our model supports a training method that takes only raw QA pairs and the facts in knowledge base, and does not rely on any additional labels and pre-defined knowledge. 
+ Also, NSM is only tested on a single dataset, \emph{i.e.} WQSP. It is unclear whether they could perform consistently well on different datasets. Among all the methods, \textsc{STAGG} perform the best when additional annotation is provided, and we can see a clear drop between \textsc{STAGG\_SP} and \textsc{STAGG\_answer} when there is no such annotation available.
 
 %By comparing performance of using different objectives as shown in the second block of the table, we can see that there is a significant improvement by considering multiple relation paths in training. The performance gap between joint objective and marginal objective demonstrates that our proposed marginal objective is a much better way to train a model with multiple relation paths. We do not observe a very different results by using or not using labeled relation paths, which is a good signal. 
 
@@ -42,13 +43,13 @@ It is worth noticing that: except our methods' results, all other experimental r
 \hline
                            & WQSP & CWQ \\
 \hline
-STAGG\_SP \cite{DBLP:conf/acl/YihRMCS16}  &  \textbf{71.7} &  -      \\
+STAGG\_SP \cite{DBLP:conf/acl/YihRMCS16}  &  71.7 &  -      \\
 HR-BiLSTM \cite{DBLP:conf/acl/YuYHSXZ17}                  & 62.3 & 31.2         \\
 KBQA-GST \cite{DBLP:conf/ijcai/LanW019}          &  67.9 &  36.5      \\
 \hline
 KV-MemNN* \cite{DBLP:conf/emnlp/MillerFDKBW16}    &  38.6 &  -      \\
 STAGG\_answer* \cite{DBLP:conf/acl/YihRMCS16}  &  66.8 &  -      \\
-NSM* \cite{DBLP:conf/acl/LiangBLFL17}  &  69.0 &  -      \\
+NSM* \cite{DBLP:conf/acl/LiangBLFL17}  &  \textbf{69.0} &  -      \\
 GRAFT-Net* \cite{DBLP:conf/emnlp/SunDZMSC18}                &  62.8 &  26.0      \\
 
 %Our Method-joint\_prob             &     62.1  &   38.0        \\
@@ -56,29 +57,59 @@ GRAFT-Net* \cite{DBLP:conf/emnlp/SunDZMSC18}                &  62.8 &  26.0     
 %Our Method-joint\_prob\_random             &     58.8  &           \\
 %Our Method-joint\_prob\_multiple\_paths             &  63.9     &     -       \\
 %Our Method-marginal\_prob\_with\_true\_label             &    \textbf{68.5}    &       34.8     \\
-Our Method-marginal\_prob*             &   67.9    &      \textbf{38.4}    \\
+Our Method-marginal\_prob*             &   67.9    &      \textbf{41.9}    \\
 %Our Method-obj3+new\_decode  &     &          \\
 \hline
 \end{tabular}
 }
-\caption{\fontsize{10}{12}\selectfont We report F1 on WQSP and CWQ. $*$ means this method only requires the final answer as the annotation, and other methods need annotated relation paths or some other annotations.}\label{tab:wqsp_cwq}
+\caption{\fontsize{10}{12}\selectfont We report F1 on WQSP and CWQ. A method labeled with $*$ only requires the final answer as the supervision. All the methods labeled with $*$ are directly comparable to our model. As references, We also report the performance of some methods that requires extra supervisions in the first block.}\label{tab:wqsp_cwq}
 \end{table}
 
-\begin{table}[h]\centering
-\resizebox{1.01\columnwidth}{!}{
+In the second experiment, we test our model with different objective functions and compare their results correspondingly. The objective functions are as defined in Table \ref{tab:obj_fcn}, where the paths used for training are given in the last column. The detailed explanations are given as following:
+
+
+\yu{move your section 3.5 to here after you fill in their definitions.}
+
+
+During the experiments, we divide our test data pairs into two groups, one contains only a single path, and the other group of data contains multiple paths between the start entity $e_0$ and answer entity $e_{answer}$. Their results on WQSP and CWQ datasets are shown in Table \ref{tab:wqsp_cwq_path_break}. 
+
+By comparing the experiment results using different objective functions, it can be observed that the model with multiple summation objective function gives the best performance on data group with 1 path, $>$1 path and the overall data on both WQSP and CWQ datasets. The single ground truth, single short and single random objective functions perform worse on the data group with more than one reasoning path, hence negatively affect their overall performance. The model with multiple summation objective also performs better than that with multiple product objective, which mainly because that the multiple summation objective only concentrates on reasonable reasoning paths and de-emphasizes those less meaningful paths.
+
+\begin{table*}[h]
+    \centering
+    \begin{tabular}{|c|c|c|}
+    \hline
+    method & objective & path $\mathbf{p}$ \\
+    \hline
+         multiple summation (ours)&  $\sum_{\mathbf{p}\in\mathcal{P}} p(y|\mathbf{p},q)p(\mathbf{p}|q)$ & all valid paths leading to $y$\\
+         \hline
+               multiple product&  $\prod_{\mathbf{p}\in\mathcal{P}} p(y|\mathbf{p},q)p(\mathbf{p}|q)$ & all valid paths leading to $y$\\
+               \hline
+          single ground truth&  $ p(y|\mathbf{p},q)p(\mathbf{p}|q)$ & single ground truth path leading to $y$\\
+        \hline
+        single random&  $ p(y|\mathbf{p},q)p(\mathbf{p}|q)$ & single random path leading to $y$\\
+        \hline
+        single shortest&  $ p(y|\mathbf{p},q)p(\mathbf{p}|q)$ & single shortest path leading to $y$\\
+         \hline
+    \end{tabular}
+    \caption{\cheng{same order as result table}} \kechen{remove method column?}
+    \label{tab:obj_fcn}
+\end{table*}
+
+
+\begin{table*}[h]\centering
 \begin{tabular}{|l|c|c|c|c|c|c|}
 \hline
                                & \multicolumn{3}{c|}{WQSP}     & \multicolumn{3}{c|}{CWQ}     \\ \hline
                                & 1 path & \textgreater{}1 path & all  & 1 path & \textgreater 1 path & all \\ \hline
-Our Method-joint\_prob         & 60.8   & 63.3      & 62.1 &           &    & 38.0               \\ 
-Our Method-joint\_prob\_short  & 60.0    & 57.0        &58.4&              &        &                     \\ 
-Our Method-joint\_prob\_random &  59.7      &  58.1       &58.8&             &        &                     \\ 
-Our Method-joint\_prob\_multiple\_path &    63.1    &   64.2      &63.7&             & -       &                     \\ 
-Our Method-marginal\_prob      & 66.0   & 69.3        &67.8&         &   &   38.4              \\ \hline
+single ground truth         & 60.8   & 63.3      & 62.1 &     32.8      &    41.2& 38.4               \\ 
+single short  & 60.0    & 57.0        &58.4&       30.2       & 40.0       &    36.8                 \\ 
+single random &  59.7      &  58.1       &58.8&      32.8       &  38.9      &  36.9                   \\ 
+multiple product &    63.1    &   64.2      &63.7&     32.9        & 42.7       & 39.5                    \\ 
+multiple summation (ours)      & 66.0   & 69.3        &67.9&35.7        & 45.0  & 41.9                \\ \hline
 \end{tabular}
-}
 \caption{\fontsize{10}{12}\selectfont We report F1 on WQSP and CWQ.}\label{tab:wqsp_cwq_path_break}
-\end{table}
+\end{table*}
 
 
 \begin{table*}[t]\centering
@@ -106,12 +137,9 @@ Our Method-marginal\_prob      & 66.0   & 69.3        &67.8&         &   &   38.
 }\caption{\fontsize{10}{12}\selectfont Two running examples from \textsc{WebQuestionSP} dataset. We show the probability $P(\mathbf{r}|q)$ before the inferred relation path. Relation paths that lead to the correct answers are highlighted in bold. The three columns are corresponding to the results by using joint objective with single path, joint objective with multiple paths, and marginal objective with multiple paths. Due to space limit, we only show the partial name of a relation in the example and the probability less than .01 is shown as .00.}\label{tab:case}
 \end{table*}
 
-\subsubsection{ComplexWebQuestion-1.1}
-
-This dataset is designed to study complex questions by adding more constraints to questions in \textsc{WebQuestionSP}, so it contains more difficult questions.  Table \ref{tab:wqsp_cwq} shows that our model outperforms all other models in terms of F1. 
 
 
-\subsection{Further Analysis}
+\subsection{Ablation Study}
 
 \begin{table}[h]\centering
 \resizebox{0.8\columnwidth}{!}{
@@ -119,11 +147,11 @@ This dataset is designed to study complex questions by adding more constraints t
 \hline
 Setting                          & WQSP  \\
 \hline
-$\textsc{BEST} - BEST$          & $67.9$ ()      \\
-$\textsc{BEST} - f^{entity}$          & $-1.5$ ()      \\
-$\textsc{BEST} - ensemble\_pred$          & $-1.3$ ()       \\
-$\textsc{BEST}-no inference filter out$          & $-3.4$ ()      \\
-$\textsc{BEST} - mutual information$          & $-1.8$ ()      \\
+$\textsc{BEST} - BEST$          & $67.9$ (0.30)      \\
+$\textsc{BEST} - f^{entity}$          & $-1.5$ (0.21)      \\
+$\textsc{BEST} - ensemble\_pred$          & $-1.8$ (0.32)       \\
+$\textsc{BEST}-no inference filter out$          & $-3.4$ (0.15)      \\
+$\textsc{BEST} - mutual information$          & $-1.8$ (0.16)      \\
 \hline
 \end{tabular}
 }
@@ -132,7 +160,7 @@ $\textsc{BEST} - mutual information$          & $-1.8$ ()      \\
 
 To further disentangle the contribution of different factor in our proposed method, we present a feature ablation test on WQSP dataset shown in Figure \ref{tab:wqsp_cwq_ablation}. The low standard deviation shows the stable of our proposed method. The vanilla RNN structure only maintain a hidden state and a embedding of the previous prediction at each time-step. Here, we show the performance boost via modeling entity in KBQA task. Instead of using greedy algorithm or beam search to output the top prediction, we propose to predict the set with the highest sum probability, which also improve the performance. We also show the benefit of using inference during training (line XX in algorithm \ref{alg:train}) and mutual information (equation \ref{}). More details can be found in the case study section. 
 
-\subsubsection{PathQuestion-Large}
+\subsection{PathQuestion-Large}
 
 
 \begin{table}[h]\centering
@@ -141,20 +169,46 @@ To further disentangle the contribution of different factor in our proposed meth
 \hline
                             & PQL2H & PQL3H & PQL+  \\
 \hline
-KV-MemNN \cite{DBLP:conf/emnlp/MillerFDKBW16}    & 72.2 & 67.4 & -         \\
-IRN \cite{DBLP:conf/coling/ZhouHZ18}                         & 72.5 & 71.0     & 52.9     \\
 HR-BiLSTM \cite{DBLP:conf/acl/YuYHSXZ17}                  & 97.5 & 87.9 & 92.9       \\
+IRN \cite{DBLP:conf/coling/ZhouHZ18}                         & 72.5 & 71.0     & 52.9     \\
 ABWIM \cite{DBLP:journals/corr/abs-1801-09893}                      & 94.3 & 89.3 & 92.6         \\
 UHop \cite{DBLP:conf/naacl/ChenCCNK19}                       & 97.5 & 89.3 & 92.3      \\
 \hline
+KV-MemNN* \cite{DBLP:conf/emnlp/MillerFDKBW16}    & 72.2 & 67.4 & -         \\
 %Our Method-joint\_prob-nomemory         & 95.3 & 94.8 & 94.5       \\
-Our Method-joint\_prob             & 98.3 & 97.1 & 97.5         \\
-Our Method-marginal\_prob         & \textbf{98.4} & \textbf{97.8} & \textbf{98.0}       \\
+%Our Method-joint\_prob             & 98.3 & 97.1 & 97.5         \\
+Our Method-marginal\_prob*         & \textbf{98.4} & \textbf{97.8} & \textbf{98.0}       \\
 \hline
 \end{tabular}
 }
-\caption{\fontsize{10}{12}\selectfont We report set accuracy ($\%$) on PQL. For UHop, we use the best reported setup from the original paper, \emph{i.e.} ABWIM with UHop.}\label{tab:qpl}
+\caption{\fontsize{10}{12}\selectfont We report set accuracy ($\%$) on PQL. Similar to Table \ref{tab:wqsp_cwq}, we use $*$ to highlight the methods which only requires the answer as supervision.}\label{tab:qpl}
 \end{table}
 
 We then test our model on \textsc{PathQuestion-Large} (PQL) dataset.
-This dataset contains synthetic questions generated by templates, and is supported by a very small knowledge. In this way, we can see the average performance on this dataset is much stronger than it on the other two datasets. This experiments are mainly used to show the prediction ability on questions with different number of hops. Table \ref{tab:qpl} shows that our method's performance beats all the other approaches on all three subsets of PQL from 1$\%$ to 7.8$\%$ in terms of test accuracy, and especially the gap between our method to the previous state-of-the-art approach (\emph{i.e.} UHop) becomes larger when the number of hops increase from 2 to 3. This indicates that the importance of using our model, especially when the number of hops increases in questions. The high accuracy also indicates that our proposed method can stop at the correct number of hops. 
+This dataset contains synthetic questions generated by templates, and is supported by a very small knowledge. In this way, we can see the average performance on this dataset is much better than it on the other two datasets. This experiments are mainly used to show the prediction ability on questions with different number of hops. Table \ref{tab:qpl} shows that our method's performance beats all the other approaches on all three subsets of PQL from 1$\%$ to 7.8$\%$ in terms of test accuracy, and especially the gap between our method to the previous state-of-the-art approach (\emph{i.e.} UHop) becomes larger when the number of hops increase from 2 to 3. \kechen{by observing cwq vs. wqsp in table2, \textgreater 1 vs. 1 in table3, 3 hop vs. 2 hop in table 6, can we conclude that: This indicates that the importance of using our model on complex queries vs. simple queries.} 
+
+\subsection{Choices of paths} \kechen{move this to model section?}
+\noindent{\bf Single ground truth path.} 
+For each QA pair, the joint objective function pushes the model to allocate all of the probability mass to the given relation path. However, this assumption does not reflect real-world reasoning procedures: Figure \ref{QAPaths} shows there could be multiple relation paths for one QA sample. 
+
+\noindent{\bf Single random path.} 
+
+\noindent{\bf Single shortest path.} 
+
+\noindent{\bf Multiple paths product.} To overcome this issue, some propose to use each relation path to construct a training instance, and the objective on one QA sample becomes:
+\begin{align}
+\mathcal{L} = -\sum_{\mathbf{p}\in \mathcal{P}}\log P(y,\mathbf{p}|q)
+\end{align}
+
+where $\mathcal{P}$ is the set of relation paths of one QA sample labeled in training set. Although this objective has ability to learn from multiple relation paths, it is limited to fit the training data, which means only the labeled relation paths are considered.
+ % It is not easy to enumerate all relation path with human labeling. 
+ In addition, this objective has an undesired consequence in practical model training: because of the multiplication operation, the model has to assign equally high probabilities to all given relation paths in order to maximize the product of the probabilities. If only some relation paths receive high probabilities while others receive low probabilities, the production will still be low. As a consequence, the model cannot differentiate bad relation paths from good ones by assigning different \kechen{use distinguishable instead of different?} probabilities to them.
+ 
+ 
+\noindent{\bf Multiple paths marginalization.} 
+With our proposed training objective, in which the multiplication operation is replaced by the summation operation, it suffices to concentrate only on reasonable reasoning paths for each QA pair. Using Jensen's inequality, one can show that this marginal probability objective maximizes the answer probability directly which is the learning goal of KBQA task, while joint probability objective maximizes a lower bound. Also, one can easily prove that the above objective pushes the model to assign both high or low probabilities for $P(y|\mathbf{p},q)$ and $P(\mathbf{p}|q)$. That is, a good relation path (high probability to point to the correct answer) also gets a high probability allocation. %A benefit of using our model with this objective is that the key hashing process filters out irrelevant memory slots from the full search space. During training, the smaller relation paths that point to an answer set, the larger probability mass will be assigned to this relation path. %This feature satisfies our definition of good path in the introduction. 
+
+
+
+ 
+
