@@ -1,12 +1,12 @@
 \begin{figure*}[t]
 \includegraphics[width=2.1\columnwidth]{figs/model.png}
-\caption{\fontsize{10}{12}\selectfont An illustration of how our model works with a question \textit{"What city is fc\_schalke\_04 in?"}. The entity linker extracts \textit{fc\_schalke\_04} as the topic entity. Possible $r_1$ and $r_2$ can be \textit{Organization.headquarters} and \textit{Mailing\_address.city\_town}, and \textit{Gelesenkirchen} is the answer $y$. The symbol $\bigoplus$ represents concatenation, and $\bigotimes$ represents knowledge base lookup. }
+\caption{\fontsize{10}{12}\selectfont An illustration of how our model works with a QA pair \textit{"What city is fc\_schalke\_04 in?"} and \textit{Gelesenkirchen}. The entity linker extracts \textit{fc\_schalke\_04} as the topic entity. We only show one possible paths here: $r_1$ is \textit{Organization.headquarters} and $r_2$ is \textit{Mailing\_address.city\_town}, our model can be used to output the probability of this given path. The symbol $\bigoplus$ represents concatenation, and $\bigotimes$ represents knowledge base lookup. }
 \label{fig:model}
 \end{figure*}
 
 
 \section{Model}
-We first introduce some notations. For a given question $q$ and its topic entity $e_0$ (identified by entity linking), a reasoning path is a sequence in the form $\mathbf{p} = (e_0, r_{1},e_{1},r_{2}, \cdots,e_{T-1}, r_{T})$ that pointing to the answer entity $e_T=y$ in the knowledge base $\mathcal{KB}$. That is, $\mathbf{p}\rightarrow e_T=y$. Each step $(e_{t-1},r_t,e_t)$ is a valid fact in $\mathcal{KB}$. Our goal is to build a model that can make use of multiple $\mathbf{p}$ to predict $y$ given $q$ and $e_0$. In this section, we first present the design of our model architecture, and then explain the training and inference algorithms in detail. 
+We first introduce some notations. For a given question $q$ and its topic entity $e_0$ (identified by entity linking tool), a reasoning path is a sequence in the form $\mathbf{p} = (e_0, r_{1},e_{1},r_{2}, \cdots,e_{T-1}, r_{T})$ that points to the answer entity $e_T=y$. That is, $\mathbf{p}\rightarrow e_T=y$. Each step $(e_{t-1},r_t,e_t)$ is a valid fact in the knowledge base $\mathcal{KB}$. Our goal is to build a model that can use multiple paths $\mathbf{p}$ to predict answer $y$ given question $q$ and topic entity $e_0$. In this section, we first present the design of our model architecture, and then explain the training and inference algorithms in detail. 
 
 \subsection{Model Architecture}
 
@@ -39,22 +39,23 @@ Figure \ref{fig:model} illustrates the architecture of our model. We model path 
 
  %After having all above computations done, 
 
-The model then concatenates temporary hidden state $h_{t}'$, entity representation $\varepsilon_e(e_{t-1})$, and question context $c_t$ together, and pass the concatenation through a linear transformation $f$ with ReLU activation to obtain the hidden state $h_t=ReLU(f([h'_{t}; \varepsilon_e(e_{t-1}); c_t]))$. This process is recurrently done until the model predicts a stop symbol \textit{$\textless$eop$\textgreater$}\footnote{This stop mechanism is the same as how it works in a vanilla RNN. Similarly, we also attach $\textless$sop$\textgreater$ to the beginning of each sequence to denote the start state. We will omit these symbols in formulas for simplicity.}. Note that the vanilla RNN attention model only has $h_{t}'$ and $c_t$ when calculates $h_t$. We add entity representation into the calculation, since entity captures important information in the reasoning path. 
+The model then concatenates temporary hidden state $h_{t}'$, entity representation $\varepsilon_e(e_{t-1})$, and question context $c_t$ together, and passes the concatenation through a linear transformation $f$ with ReLU activation to obtain the hidden state $h_t=ReLU(f([h'_{t}; \varepsilon_e(e_{t-1}); c_t]))$. This process is recurrently done until the model predicts a stop symbol \textit{$\textless$eop$\textgreater$}\footnote{This stop mechanism is the same as how it works in a vanilla RNN. Similarly, we also attach $\textless$sop$\textgreater$ to the beginning of each sequence to denote the start state. We will omit these symbols in formulas for simplicity.}. Note that the vanilla RNN attention model only has $h_{t}'$ and $c_t$ when calculates $h_t$. We add entity representation into the calculation, since entity captures important information in the reasoning path. 
 
 \subsection{Probabilities and Objective Function} 
 The probability of predicting the $k$-th relation $\gamma_k$ in $\mathcal{R}$ at timestep $t$ is:
 \begin{align*}
 &p(r_t=\gamma_k|q,e_0,r_1,\cdots,e_{t-1})\\
- &= \frac{\exp <h_t,\varepsilon_r(\gamma_k)>}{\sum_j\exp <h_t,\varepsilon_r(\gamma_j)>}=o^k_t,
+ &= \frac{\exp <h_t,\varepsilon_r(\gamma_k)>}{\sum_j\exp <h_t,\varepsilon_r(\gamma_j)>}
 \end{align*}
 where $\varepsilon_r$ is the embedding function, $<>$ is the dot product between two inputs.
 
 
 Given the previous entity $e_{t-1}$ and relation $r_t$, the next matched entity may not be unique when we query the knowledge base. %(another way to collect this entity is via a soft lookup with a key-value memory network structure. We provide more details in the appendix.) 
-For example, if $e_{t-1}$=``united states'', and $r_t=$ ``president of'', then the resulting entity has 45 possibilities. Without additional constraints, all of them are equally likely to be selected, and hence we define:
+For example, if $e_{t-1}$=``united states'', and $r_t=$ ``president of'', then the resulting entity has 45 possibilities. Since we do not have additional constraints, all of them are equally likely to be selected, and hence we define:
 \begin{align}
-  &p(e_t|q,e_0,r_1,\cdots,e_{t-1},r_t)\\\nonumber
-  =&p(e_t|e_{t-1},r_t)\\\nonumber
+  %&p(e_t|q,e_0,r_1,\cdots,e_{t-1},r_t)\\\nonumber
+  %=&\;
+  &p(e_t|e_{t-1},r_t)\\\nonumber
   =&\begin{cases}
   1/M & \text{if }e_t\text{ is one of the }M\text{ matched entities} \\\nonumber
   0 & \text{if }e_t\text{ is not a matched entity}
@@ -62,13 +63,13 @@ For example, if $e_{t-1}$=``united states'', and $r_t=$ ``president of'', then t
 \label{eq:equal}
 \end{align}
 
-The probability of a path can be computed using the chain rule:
+Thus the probability of a path containing both entities and relations can be computed using the chain rule:
 \begin{align}
 &p(\mathbf{p}|q)\nonumber\\
 =& \prod_{t=1}^{T-1}p(e_t|e_{t-1},r_t)\prod_{t=1}^{T}p(r_t|q,e_0,r_1,\cdots,e_{t-1}) 
 \end{align}
 
-We assume that there are multiple valid paths $\mathbf{p}\in \mathcal{P}$ that can lead to the correct answer $y$ and they are not given by the annotator in the dataset. We treat these paths as hidden variables and we marginalize them out to compute the probability of getting the answer $y$.
+We assume that there are multiple valid paths $\mathbf{p}\in \mathcal{P}$ that can lead to the correct answer $y$ and they are not given by the annotator in the dataset. We treat these paths as hidden variables and we marginalize them out to compute the probability of getting the answer $y$:
 
 \begin{align}
 &p(y|q)\nonumber\\
@@ -80,7 +81,7 @@ where $\mathcal{P}$ is a set of all valid paths leading to the answer $y$, and $
 
 To train our model, we would like to maximize the answer probability $p(y|q)$ using only the given answer for each training instance. To make prediction on each test case, we would like to find the answer $y$ with the highest probability.
 
-The way we define answer probability as in Eq.~(\ref{eq:marginal}) is novel in the KBQA task. Most of the existing methods assume the availability of a single ground truth path annotation and aim to maximize the probability of the given path~\cite{DBLP:conf/coling/ZhouHZ18}. As we will demonstrate later in the result section, considering multiple paths leads to better model performance.
+It is a novel way that we define answer probability as in (\ref{eq:marginal}) in the KBQA task. Most of the existing methods assume the availability of a single ground truth path annotation and aim to maximize the probability of the given path~\cite{DBLP:conf/coling/ZhouHZ18}. As we will demonstrate later in the Section \ref{sec:cop}, considering multiple paths leads to a better model performance.
 
 
 
@@ -96,10 +97,10 @@ The way we define answer probability as in Eq.~(\ref{eq:marginal}) is novel in t
 \subsection{Training}
 
 
-Training the model by maximizing the marginalized answer probability Eq.~(\ref{eq:marginal}) requires summing over all valid relation paths from the topic entity to the answer entity in the knowledge base. Thus computing this objective exactly can be intractable. As we showed in the early example, some relation paths ($R_5, R_6, R_7$ in Figure \ref{QAPaths}) are not very helpful for training, and thus should be removed from training or assigned low probabilities. To achieve this goal, we first apply depth first search (DFS) algorithm with maximum 3 hops to get valid path candidates. The algorithm starts traversal from the topic entity node and ends at the answer entity node. All possible paths between the topic entity and the answer entity within 3 hops are extracted as candidates. We then set a threshold to remove paths which point to too many entities at the last hop. To further filter out bad relation paths, we propose to dynamically choose relation paths deemed as most probable by the current model during training.
+In order to train our model by maximizing the marginalized answer probability given in (\ref{eq:marginal}), it requires summing over all valid relation paths from the topic entity to the answer entity in knowledge base. Thus computing this objective exactly can be intractable. As shown in the early example, some relation paths ($R_5, R_6, R_7$ in Figure \ref{QAPaths}) are not very helpful for training, thus should be either removed from training or assigned low probabilities. To achieve this goal, we first apply depth first search (DFS) algorithm with maximum 3 hops to get valid path candidates. The algorithm starts the traversal from the topic entity node, and ends at the answer entity node. All possible paths between the topic entity and the answer entity within 3 hops are extracted as candidates. We then set a threshold to remove paths which point to too many entities at the last hop. To further filter out bad relation paths, we propose to dynamically choose relation paths deemed as most probable by the current model during training.
 
 
- The overall training procedure is summarized in Algorithm \ref{alg:train}. Note that training with this algorithm does not require ground truth relation path label. Labeled relation path can be seen as plus, but not necessary. If it is given, we can either include the ground truth paths in $\mathcal{P}$, or use them to initialize model training.
+ The overall training procedure is summarized in Algorithm \ref{alg:train}. Note that training with this algorithm does not require ground truth relation path label. Labeled relation path is a plus, but not necessary. If it is given, we can either include the ground truth paths in $\mathcal{P}$, or use them to initialize model training.
 
 \begin{algorithm}
  \SetKwInOut{Input}{Input}
@@ -125,17 +126,16 @@ Training the model by maximizing the marginalized answer probability Eq.~(\ref{e
 
 
  % }
- \caption{Training method}
+ \caption{Our training method}
  \label{alg:train}
 \end{algorithm}
 \subsection{Prediction} \label{sec:pmi}
 
-During prediction, we aim to select the answer $y$ with the highest marginalized probability $p(y|q)$ as defined in Eq.~(\ref{eq:marginal}). As in training, we need to approximate the sum with sample paths from $\mathcal{P}$. We use a modified version of beam search to find paths that have high probabilities. We add two constraints to standard beam search to only select the valid paths that match the knowledge base. (1) The first relation $r_1$ should connect to the topic entity $e_0$. (2) Each triple $(e_{t-1},r_t,e_t)$ should match a fact in KB.
+During the prediction, we aim to select the answer $y$ with the highest marginalized probability $p(y|q)$ as defined in (\ref{eq:marginal}). Similar to training, we need to approximate the sum with selected paths from $\mathcal{P}$. We use a modified beam search to find paths that have high probabilities. We add two constraints to standard beam search to only select the valid paths that match the knowledge base: (1) The first relation $r_1$ should connect to the topic entity $e_0$. (2) Each triple $(e_{t-1},r_t,e_t)$ should match a fact in KB.
 
-Given the set of paths collected as above, we can then collect a set of candidate answers that these paths point to. For each answer $y$, we evaluate its probability $p(y|q)$
-approximately using the collected paths, and among them we output the answer with the highest probability.
+Given a set of paths collected, we can then obtain a candidate answer $Y$ where these paths point to. For each answer $y \in Y$, we evaluate its probability $p(y|q)$ using the collected reasoning paths. Finally, among all $y \in Y$ we output the answer $y^*$ with the highest $p(y|q)$, \emph{i.e.} $y^*=\argmax_{y \in Y}p(y|q)$.
 
-Additionally, we observe that it could be beneficial to de-emphasize the impact of the topic entity during prediction, as noted by other work on question answering \cite{DBLP:conf/naacl/LiGBGD16}. Instead of finding $y$ that maximizes $p(y|q)$, we can find $y$ that maximizes $p(y|q)/p(y|e_0)$, where $p(y|e_0)$ is the probability of getting the answer $y$ when the question only contains the topic entity word. One can show mathematically that this is equivalent to maximizing the point-wise conditional mutual information $PMI(y;q\backslash e_0|e_0)$ between $y$ and $q\backslash e_0$ given $e_0$, where $q\backslash e_0$ stands for the question with the topic entity term removed. Further discussion can be found in Section \ref{sec:case}.
+Additionally, we observe that it could be beneficial to de-emphasize the impact of the topic entity during prediction, as noted in \cite{DBLP:conf/naacl/LiGBGD16}, which can improve inference performance by avoiding generating generic predictions and reducing overfitting. Specifically, instead of searching $y^*$ that maximizes $p(y|q)$, we can find an answer that maximizes $\dfrac{p(y|q)}{p(y|e_0)}$, where $p(y|e_0)$ is the probability of getting the answer $y$ when the question only contains the topic entity word. Mathematically, one can show that this is equivalent to maximizing the point-wise conditional mutual information PMI$((y;q\backslash e_0)|e_0)$ between $y$ and $q\backslash e_0$ given $e_0$, where $q\backslash e_0$ stands for the question with the topic entity term removed. Further discussion can be found in Section \ref{sec:case}.
 
 % \begin{equation}
 % \begin{aligned}
