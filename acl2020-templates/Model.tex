@@ -1,5 +1,5 @@
-\begin{figure*}[t]
-\includegraphics[width=2.1\columnwidth]{figs/model.png}
+\begin{figure*}[t]\centering
+\includegraphics[width=2.0\columnwidth]{figs/model.png}
 \caption{\fontsize{10}{12}\selectfont An illustration of how our model works with a QA pair \textit{"What city is fc\_schalke\_04 in?"} and \textit{Gelesenkirchen}. The entity linker extracts \textit{fc\_schalke\_04} as the topic entity. We only show one possible paths here: $r_1$ is \textit{Organization.headquarters} and $r_2$ is \textit{Mailing\_address.city\_town}, our model can be used to output the probability of this given path. The symbol $\bigoplus$ represents concatenation, and $\bigotimes$ represents knowledge base lookup. }
 \label{fig:model}
 \end{figure*}
@@ -64,10 +64,12 @@ For example, if $e_{t-1}$=``united states'', and $r_t=$ ``president of'', then t
 \end{align}
 
 Thus the probability of a path containing both entities and relations can be computed using the chain rule:
+
 \begin{align}
 &p(\mathbf{p}|q)\nonumber\\
 =& \prod_{t=1}^{T-1}p(e_t|e_{t-1},r_t)\prod_{t=1}^{T}p(r_t|q,e_0,r_1,\cdots,e_{t-1}) 
 \end{align}
+
 
 We assume that there are multiple valid paths $\mathbf{p}\in \mathcal{P}$ that can lead to the correct answer $y$ and they are not given by the annotator in the dataset. We treat these paths as hidden variables and we marginalize them out to compute the probability of getting the answer $y$:
 
@@ -97,10 +99,7 @@ It is a novel way that we define answer probability as in (\ref{eq:marginal}) in
 \subsection{Training}
 
 
-In order to train our model by maximizing the marginalized answer probability given in (\ref{eq:marginal}), it requires summing over all valid relation paths from the topic entity to the answer entity in knowledge base. Thus computing this objective exactly can be intractable. As shown in the early example, some relation paths ($R_5, R_6, R_7$ in Figure \ref{QAPaths}) are not very helpful for training, thus should be either removed from training or assigned low probabilities. To achieve this goal, we first apply depth first search (DFS) algorithm with maximum 3 hops to get valid path candidates. The algorithm starts the traversal from the topic entity node, and ends at the answer entity node. All possible paths between the topic entity and the answer entity within 3 hops are extracted as candidates. We then set a threshold to remove paths which point to too many entities at the last hop. To further filter out bad relation paths, we propose to dynamically choose relation paths deemed as most probable by the current model during training.
-
-
- The overall training procedure is summarized in Algorithm \ref{alg:train}. Note that training with this algorithm does not require ground truth relation path label. Labeled relation path is a plus, but not necessary. If it is given, we can either include the ground truth paths in $\mathcal{P}$, or use them to initialize model training.
+In order to train our model by maximizing the marginalized answer probability given in (\ref{eq:marginal}), it requires summing over all valid relation paths from the topic entity to the answer entity in knowledge base. Thus computing this objective exactly can be intractable. As shown in the early example, some relation paths ($R_5, R_6, R_7$ in Figure \ref{QAPaths}) are not very helpful for training, thus should be either removed from training or assigned low probabilities. To achieve this goal, we first apply depth first search (DFS) algorithm with maximum 3 hops to get valid path candidates. The algorithm starts the traversal from the topic entity node, and ends at the answer entity node. All possible paths between the topic entity and the answer entity within 3 hops are extracted as candidates. We then set a threshold to remove paths which point to too many entities at the last hop. To further filter out bad relation paths, we propose to dynamically choose relation paths deemed as most probable by the current model during training. The overall training procedure is summarized in Algorithm \ref{alg:train}. Note that training with this algorithm does not require ground truth relation path label. Labeled relation path is a plus, but not necessary. If it is given, we can either include the ground truth paths in $\mathcal{P}$, or use them to initialize model training.
 
 \begin{algorithm}
  \SetKwInOut{Input}{Input}
@@ -131,9 +130,12 @@ In order to train our model by maximizing the marginalized answer probability gi
 \end{algorithm}
 \subsection{Prediction} \label{sec:pmi}
 
-During the prediction, we aim to select the answer $y$ with the highest marginalized probability $p(y|q)$ as defined in (\ref{eq:marginal}). Similar to training, we need to approximate the sum with selected paths from $\mathcal{P}$. We use a modified beam search to find paths that have high probabilities. We add two constraints to standard beam search to only select the valid paths that match the knowledge base: (1) The first relation $r_1$ should connect to the topic entity $e_0$. (2) Each triple $(e_{t-1},r_t,e_t)$ should match a fact in KB.
+During the prediction, we aim to select the answer $y$ with the highest marginalized probability $p(y|q)$ as defined in (\ref{eq:marginal}). Similar to training, we need to approximate the sum with selected paths from $\mathcal{P}$. We use a modified beam search to find paths that have high probabilities. We add two constraints to standard beam search to only select the valid paths that match the knowledge base: (1) The first relation $r_1$ should connect to the topic entity $e_0$. (2) Each triple $(e_{t-1},r_t,e_t)$ should match a fact in KB. Given the set of paths collected as above, we can then collect a set of candidate answers that these paths point to. For each answer $y$, we evaluate its probability $p(y|q)$
+approximately using the collected paths, and among them we output the answer with the highest probability.
 
-Given a set of paths collected, we can then obtain a candidate answer $Y$ where these paths point to. For each answer $y \in Y$, we evaluate its probability $p(y|q)$ using the collected reasoning paths. Finally, among all $y \in Y$ we output the answer $y^*$ with the highest $p(y|q)$, \emph{i.e.} $y^*=\argmax_{y \in Y}p(y|q)$.
+%Given a set of paths collected, we can then obtain a candidate answer set $Y$ which these paths point to. For each answer $y \in Y$, we evaluate its probability $p(y|q)$ using the collected reasoning paths. Finally, among all $y \in Y$ we output the answer $y^*$ with the highest $p(y|q)$, \emph{i.e.} $y^*=\argmax_{y \in Y}p(y|q)$.
+
+
 
 Additionally, we observe that it could be beneficial to de-emphasize the impact of the topic entity during prediction, as noted in \cite{DBLP:conf/naacl/LiGBGD16}, which can improve inference performance by avoiding generating generic predictions and reducing overfitting. Specifically, instead of searching $y^*$ that maximizes $p(y|q)$, we can find an answer that maximizes $\dfrac{p(y|q)}{p(y|e_0)}$, where $p(y|e_0)$ is the probability of getting the answer $y$ when the question only contains the topic entity word. Mathematically, one can show that this is equivalent to maximizing the point-wise conditional mutual information PMI$((y;q\backslash e_0)|e_0)$ between $y$ and $q\backslash e_0$ given $e_0$, where $q\backslash e_0$ stands for the question with the topic entity term removed. Further discussion can be found in Section \ref{sec:case}.
 
