@@ -147,3 +147,31 @@ Our Method-marginal\_prob      & 66.0   & 69.3                 &   &            
 \subsubsection{ComplexWebQuestion-1.1}
 
 This dataset is designed to study complex questions by adding more constraints to questions in \textsc{WebQuestionSP}. It contains more difficult questions than the first two datasets.  We report the experimental results in Table \ref{tab:wqsp_cwq}. Note that this dataset does not come with multiple relation path labels, so the corresponding experiment is not available. Our model outperforms all other models in terms of hits@1, and slightly worse than KBQA-GST in terms of F1 score, but again, KBQA-GST requires many additional information to train. Different from the observation in \textsc{WebQuestionSP} dataset, we see that there is a performance degradation when the model is not pre-trained with ground truth relations. It is because that the model can easily make errors in early stage and gets stuck with these errors. In contrast, our model on WQSP does not suffer from this problem because the relation path is much shorter, and thus it is not hard to generate correct training samples at the beginning of the training. To compare it with existing methods, our model still performs better than GRAFT-Net, which is the state-of-the-art results without using any additional labels.
+
+
+\begin{table*}[t]\centering
+\resizebox{2.1\columnwidth}{!}{%resize the table
+\begin{tabular}{l|l|l}
+\hline
+\multicolumn{3}{c}{Question: what state does romney live in?  \ \ \        Answer: Massachusetts  \ \ \       Topic entity: romney}                                                                                                                                            \\ \hline
+\textsc{Single\ Ground\ truth} & \textsc{Multiple\ product} & \textsc{Multiple\ summation (our)}\\ \hline
+.89:children & .29:education\_institution/\ state\_province\_region & .83:\textbf{places\_lived/\ location} \\ \hline
+.06:\textbf{government\_positions/\ jurisdiction\_of\_office} & .25:\textbf{places\_lived/\ location} & .12:\textbf{government\_positions/\ jurisdiction\_of\_office} \\ \hline
+.04:\textbf{government\_positions/\ office\_position\_or\_title} & .25:\textbf{government\_positions/\ district\_represented} & .04:\textbf{government\_positions/\ district\_represented} \\ \hline
+.00:\textbf{government\_positions/\ district\_represented} & .01:\textbf{government\_positions/\ jurisdiction\_of\_office} & .01:place\_of\_birth/\ state \\ \hline
+.00:place\_of\_birth & .01:place\_of\_birth/\ state & .00:education/\ degree \\ \hline
+.00:jurisdiction\_of\_office & .01:sibling/\ place\_of\_birth & .00:election\_campaigns \\ \hline 
+\multicolumn{3}{c}{Question:where did madonna grew up?\ \ \       Answer: Bay City\ \ \    Topic entity: madonna}                                                                                                                                            \\ 
+\hline
+\textsc{Single\ Ground\ truth} & \textsc{Multiple\ product} & \textsc{Multiple\ summation (our)}\\ \hline
+.99:\textbf{place\_of\_birth} & .50:nominated\_for & .47:nominated\_for/\ featured\_film\_locations \\ \hline
+.00:nominated\_for & .16:nominated\_for/\ featured\_film\_locations & .40:\textbf{place\_of\_birth} \\ \hline
+.00:\textbf{place\_lived.location} & .11:compositions & .11:\textbf{place\_lived.location/\ place} \\ \hline
+.00:place\_lived.location/\ containedby & .09:\textbf{place\_lived.location} & .00:nominated\_for \\ \hline
+.00:compositions & .08:\textbf{place\_of\_birth} & .00:\textbf{place\_lived.location} \\ \hline
+.00:religion & .01:award\_nominations/\ nominated\_for & .00:\textbf{place\_lived.location/\ region} \\ \hline
+
+
+\end{tabular}
+}\caption{\fontsize{10}{12}\selectfont Two running examples from \textsc{WebQuestionSP} dataset. We show the probability $P(r_0,...,r_T|q)$ before the inferred relation path. Paths that lead to the correct answers are highlighted in bold. We use $/$ to split two relations. The three columns are corresponding to the results by using different training settings as it is in Table \ref{tab:obj_fcn}: single ground truth, multiple product, and multiple summation (our). Due to space limit, we only show the partial name of a relation in the example and the probability less than .01 is shown as .00. We do not show $P(e_0,...,e_{T-1}|q)$ because they are not determined by our model. }\label{tab:case}
+\end{table*}
